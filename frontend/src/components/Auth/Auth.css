@@ -1,0 +1,119 @@
+/* src/components/Auth/Auth.css */
+.login-page, .register-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+}
+
+.login-container, .register-container {
+    width: 100%;
+    max-width: 420px;
+}
+
+.login-card, .register-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.login-header, .register-header {
+    padding: 30px;
+    text-align: center;
+    background: linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%);
+    color: white;
+}
+
+.login-header .logo, .register-header .logo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.login-header .logo i, .register-header .logo i {
+    font-size: 40px;
+    margin-bottom: 10px;
+}
+
+.login-header .logo h2, .register-header .logo h2 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.login-header p, .register-header p {
+    margin: 10px 0 0;
+    opacity: 0.9;
+}
+
+.login-form, .register-form {
+    padding: 30px;
+}
+
+.login-footer, .register-footer {
+    padding: 20px;
+    text-align: center;
+    border-top: 1px solid #eee;
+    background: #f8f9fa;
+}
+
+.form-label {
+    font-weight: 500;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.form-control {
+    padding: 10px 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    transition: all 0.3s;
+}
+
+.form-control:focus {
+    border-color: #4361ee;
+    box-shadow: 0 0 0 0.2rem rgba(67, 97, 238, 0.25);
+}
+
+.form-check-input:checked {
+    background-color: #4361ee;
+    border-color: #4361ee;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%);
+    border: none;
+    padding: 12px;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(67, 97, 238, 0.3);
+}
+
+.btn-primary:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.spinner-border {
+    width: 1rem;
+    height: 1rem;
+    margin-right: 8px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+    .login-card, .register-card {
+        border-radius: 0;
+    }
+    
+    .login-form, .register-form {
+        padding: 20px;
+    }
+}
