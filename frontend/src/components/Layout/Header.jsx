@@ -1,9 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationContext';
+import { IMAGE_BASE_URL } from '../../services/api';
 
 const Header = ({ toggleSidebar }) => {
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotifications();
 
   return (
     <header className="header">
@@ -13,17 +16,31 @@ const Header = ({ toggleSidebar }) => {
       </div>
 
       <div className="header-actions">
-        <div className="notification-bell">
+        <Link to="/notifications" className="notification-bell position-relative">
           <i className="fas fa-bell"></i>
-        </div>
+          {unreadCount > 0 && (
+            <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.6rem' }}>
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </Link>
 
         <div className="dropdown">
           <button
-            className="btn btn-outline-primary dropdown-toggle"
+            className="btn btn-outline-primary dropdown-toggle d-flex align-items-center gap-2"
             type="button"
             data-bs-toggle="dropdown"
           >
-            <i className="fas fa-user-circle me-2"></i>
+            {user?.profileImage ? (
+              <img 
+                src={`${IMAGE_BASE_URL}/${user.profileImage}`} 
+                alt="" 
+                className="rounded-circle" 
+                style={{ width: '24px', height: '24px', objectFit: 'cover' }} 
+              />
+            ) : (
+              <i className="fas fa-user-circle"></i>
+            )}
             <span>{user?.fullName || 'User'}</span>
           </button>
           <ul className="dropdown-menu dropdown-menu-end">

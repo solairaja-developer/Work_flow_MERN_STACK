@@ -13,15 +13,24 @@ const ManagerDashboard = () => {
         dueDate: '',
         priority: 'Medium'
     });
+    const [taskFilter, setTaskFilter] = useState('all');
 
     const { data: dashboardData, isLoading } = useQuery(
         ['managerDashboard'],
-        managerAPI.getDashboard
+        managerAPI.getDashboard,
+        {
+            refetchInterval: 15000, // Auto-refresh every 15 seconds
+            refetchOnWindowFocus: true
+        }
     );
 
     const { data: teamData } = useQuery(
         ['team'],
-        () => managerAPI.getTeam()
+        () => managerAPI.getTeam(),
+        {
+            refetchInterval: 30000, // Refresh every 30 seconds
+            refetchOnWindowFocus: true
+        }
     );
 
     const createTaskMutation = useMutation(
@@ -81,13 +90,15 @@ const ManagerDashboard = () => {
             {/* Stats Cards */}
             <div className="row g-4 mb-5">
                 {[
-                    { label: 'Total Staff', value: stats?.teamSize || 0, icon: 'fas fa-users', color: 'primary', trend: '+ Live update' },
-                    { label: 'Active Work', value: stats?.totalTasks - stats?.completedTasks || 0, icon: 'fas fa-tasks', color: 'success', trend: '↑ Real-time' },
-                    { label: 'Completed', value: stats?.completedTasks || 0, icon: 'fas fa-check-circle', color: 'info', trend: '↑ Updated' },
-                    { label: 'Pending', value: stats?.pendingTasks || 0, icon: 'fas fa-clock', color: 'warning', trend: '! Needs attention' }
+                    { label: 'Total Tasks', value: stats?.totalTasks || 0, icon: 'fas fa-tasks', color: 'primary', trend: 'Total Work' },
+                    { label: 'Active Work', value: stats?.totalTasks - stats?.completedTasks || 0, icon: 'fas fa-spinner', color: 'success', trend: 'Ongoing' },
+                    { label: 'Completed', value: stats?.completedTasks || 0, icon: 'fas fa-check-circle', color: 'info', trend: 'Finished' },
+                    { label: 'Pending', value: stats?.pendingTasks || 0, icon: 'fas fa-clock', color: 'warning', trend: 'To Start' }
                 ].map((stat, i) => (
                     <div className="col-xl-3 col-md-6" key={i}>
-                        <div className="premium-card h-100">
+                        <div className={`premium-card h-100 ${taskFilter === stat.label.toLowerCase().replace(' ', '_') ? 'border-primary' : ''}`}
+                             style={{ cursor: 'pointer' }}
+                             onClick={() => setTaskFilter(stat.label.toLowerCase().replace(' ', '_') === 'total_tasks' ? 'all' : stat.label.toLowerCase().replace(' ', '_') === 'active_work' ? 'in_progress' : stat.label.toLowerCase().replace(' ', '_'))}>
                             <div className="d-flex justify-content-between align-items-start mb-3">
                                 <div className={`btn-icon rounded-circle bg-${stat.color} text-white`}>
                                     <i className={stat.icon}></i>
@@ -109,7 +120,19 @@ const ManagerDashboard = () => {
                             <h5 className="mb-0">
                                 <i className="fas fa-project-diagram text-primary me-2"></i> Task Overview
                             </h5>
-                            <Link to="/tasks" className="btn btn-sm btn-outline-primary rounded-pill px-3">View All Status</Link>
+                            <div className="d-flex gap-2 align-items-center">
+                                {['all', 'pending', 'in_progress', 'completed'].map((f) => (
+                                    <button
+                                        key={f}
+                                        className={`btn btn-xs rounded-pill px-2 ${taskFilter === f ? 'btn-primary' : 'btn-light'}`}
+                                        style={{ fontSize: '0.7rem' }}
+                                        onClick={() => setTaskFilter(f)}
+                                    >
+                                        {f.replace('_', ' ').charAt(0).toUpperCase() + f.replace('_', ' ').slice(1)}
+                                    </button>
+                                ))}
+                                <Link to="/tasks" className="btn btn-sm btn-link text-primary text-decoration-none p-0 ms-2">View All</Link>
+                            </div>
                         </div>
                         <div className="table-responsive">
                             <table className="premium-table">
@@ -124,9 +147,9 @@ const ManagerDashboard = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {recentActivities?.slice(0, 6).map((task) => (
+                                    {recentActivities?.filter(t => taskFilter === 'all' || t.status === taskFilter).slice(0, 8).map((task) => (
                                         <tr key={task._id}>
-                                            <td><span className="fw-bold">WF-{task._id.slice(-3).toUpperCase()}</span></td>
+                                            <td><span className="fw-bold">{task.workId || `WF-${task._id.slice(-3).toUpperCase()}`}</span></td>
                                             <td>{task.title}</td>
                                             <td>
                                                 <div className="d-flex align-items-center">
@@ -155,6 +178,11 @@ const ManagerDashboard = () => {
                                             <td>{new Date(task.dueDate).toLocaleDateString()}</td>
                                         </tr>
                                     ))}
+                                    {(!recentActivities || recentActivities.filter(t => taskFilter === 'all' || t.status === taskFilter).length === 0) && (
+                                        <tr>
+                                            <td colSpan="6" className="text-center py-4 text-muted small">No tasks found for this status</td>
+                                        </tr>
+                                    )}
                                     {(!recentActivities || recentActivities.length === 0) && (
                                         <tr>
                                             <td colSpan="6" className="text-center py-4 text-muted">No recent activities found</td>

@@ -7,12 +7,20 @@ import { Link } from 'react-router-dom';
 const StaffDashboard = () => {
     const { data: dashboardData, isLoading } = useQuery(
         ['staffDashboard'],
-        staffAPI.getDashboard
+        staffAPI.getDashboard,
+        {
+            refetchInterval: 15000, // Auto-refresh every 15 seconds
+            refetchOnWindowFocus: true
+        }
     );
 
     const { data: notifications } = useQuery(
         ['notifications'],
-        staffAPI.getNotifications
+        staffAPI.getNotifications,
+        {
+            refetchInterval: 20000, // Refresh every 20 seconds
+            refetchOnWindowFocus: true
+        }
     );
 
     if (isLoading) {

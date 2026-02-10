@@ -198,7 +198,6 @@ exports.assignTask = async (req, res) => {
             title,
             description,
             assignedTo,
-            category,
             priority,
             dueDate
         } = req.body;
@@ -231,7 +230,6 @@ exports.assignTask = async (req, res) => {
                 assignedTo,
                 assignedBy: managerId,
                 department: req.user.department,
-                category: category || req.user.department,
                 priority: priority || 'medium',
                 startDate: new Date(),
                 dueDate: new Date(dueDate)
@@ -639,7 +637,11 @@ exports.getUnassignedDepartmentTasks = async (req, res) => {
         const department = req.user.department;
         const tasks = await Task.find({
             department,
-            assignedTo: null
+            $or: [
+                { assignedTo: null },
+                { assignedTo: req.user.id }
+            ],
+            status: { $ne: 'completed' } // Only show tasks that aren't finished
         })
             .populate('assignedBy', 'fullName')
             .sort({ createdAt: -1 });

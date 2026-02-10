@@ -5,6 +5,7 @@ const router = express.Router();
 const adminController = require('../controllers/adminController');
 const auth = require('../middleware/auth');
 const roleMiddleware = require('../middleware/roleMiddleware');
+const upload = require('../middleware/upload');
 
 // All admin routes require authentication and admin role
 router.use(auth, roleMiddleware(['admin']));
@@ -15,9 +16,9 @@ router.get('/analytics', adminController.getAnalytics);
 
 // User Management
 router.get('/users', adminController.getAllUsers);
-router.post('/users', adminController.createUser);
+router.post('/users', upload.single('profileImage'), adminController.createUser);
 router.delete('/users/:id', adminController.deleteUser);
-router.put('/users/:id', adminController.updateUser);
+router.put('/users/:id', upload.single('profileImage'), adminController.updateUser);
 
 // Task Management
 router.post('/tasks', adminController.createTask);

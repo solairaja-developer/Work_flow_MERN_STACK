@@ -26,6 +26,12 @@ const Login = () => {
             return;
         }
 
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            toast.error('Please enter a valid email address');
+            return;
+        }
+
         setLoading(true);
         const result = await login(email, password);
         setLoading(false);

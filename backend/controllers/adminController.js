@@ -289,24 +289,27 @@ exports.getDashboardStats = async (req, res) => {
             totalUsers,
             managersCount,
             totalTasks,
-            activeTasks,
-            todayTasks,
+            pendingTasks,
+            inProgressTasks,
+            completedTasks,
+            overdueTasks,
             recentActivities,
             recentUsers
         ] = await Promise.all([
             User.countDocuments(),
             User.countDocuments({ role: 'manager' }),
             Task.countDocuments(),
-            Task.countDocuments({ status: { $in: ['pending', 'in_progress'] } }),
+            Task.countDocuments({ status: 'pending' }),
+            Task.countDocuments({ status: 'in_progress' }),
+            Task.countDocuments({ status: 'completed' }),
             Task.countDocuments({
-                createdAt: {
-                    $gte: new Date().setHours(0, 0, 0, 0)
-                }
+                dueDate: { $lt: new Date() },
+                status: { $in: ['pending', 'in_progress'] }
             }),
             Task.find()
                 .populate('assignedTo', 'fullName')
                 .sort({ createdAt: -1 })
-                .limit(5),
+                .limit(8),
             User.find()
                 .select('fullName email role department createdAt')
                 .sort({ createdAt: -1 })
@@ -322,8 +325,10 @@ exports.getDashboardStats = async (req, res) => {
                 },
                 tasks: {
                     total: totalTasks,
-                    active: activeTasks,
-                    today: todayTasks
+                    pending: pendingTasks,
+                    inProgress: inProgressTasks,
+                    completed: completedTasks,
+                    overdue: overdueTasks
                 }
             },
             recentActivities,
@@ -408,7 +413,8 @@ exports.createUser = async (req, res) => {
             fullName,
             department,
             phone,
-            role: role || 'staff'
+            role: role || 'staff',
+            profileImage: req.file ? req.file.path.replace(/\\/g, '/') : ''
         });
 
         await user.save();
@@ -437,6 +443,10 @@ exports.updateUser = async (req, res) => {
         const { id } = req.params;
         // Prevent password update through this route for security, unless specifically intended
         const { password, ...updateData } = req.body;
+
+        if (req.file) {
+            updateData.profileImage = req.file.path.replace(/\\/g, '/');
+        }
 
         const user = await User.findByIdAndUpdate(
             id,
@@ -498,7 +508,6 @@ exports.getAllTasks = async (req, res) => {
         if (status) filter.status = status;
         if (priority) filter.priority = priority;
         if (department) filter.department = department;
-        if (category) filter.category = category;
 
         const tasks = await Task.find(filter)
             .populate('assignedTo', 'fullName staffId')
@@ -521,14 +530,13 @@ exports.getAllTasks = async (req, res) => {
 // Create Task (Work Creation)
 exports.createTask = async (req, res) => {
     try {
-        const { title, description, department, category, priority, dueDate, assignedTo } = req.body;
+        const { title, description, department, priority, dueDate, assignedTo } = req.body;
         const adminId = req.user.id;
 
         const task = new Task({
             title,
             description,
             department,
-            category,
             priority: priority || 'medium',
             dueDate: new Date(dueDate),
             startDate: new Date(),
@@ -541,14 +549,29 @@ exports.createTask = async (req, res) => {
 
         // Notify Managers of the department
         const managers = await User.find({ role: 'manager', department });
-        const notifications = managers.map(mgr => ({
+        
+        let notifications = managers.map(mgr => ({
             user: mgr._id,
             type: 'task_assigned',
             title: 'New Work Added to Department',
-            message: `Admin added a new task: "${title}". Please assign it to a staff member.`,
+            message: assignedTo === mgr._id.toString() 
+                ? `You have been specifically assigned to manage this task: "${title}"`
+                : `Admin added a new task to your department: "${title}".`,
             link: `/tasks/${task._id}`,
             createdBy: adminId
         }));
+
+        // If assignedTo is a staff (not in managers list), notify them too
+        if (assignedTo && !managers.find(m => m._id.toString() === assignedTo)) {
+            notifications.push({
+                user: assignedTo,
+                type: 'task_assigned',
+                title: 'New Task Assigned',
+                message: `Admin has assigned you a new task: "${title}"`,
+                link: `/tasks/${task._id}`,
+                createdBy: adminId
+            });
+        }
 
         if (notifications.length > 0) {
             await Notification.insertMany(notifications);

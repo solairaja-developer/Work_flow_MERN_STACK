@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { IMAGE_BASE_URL } from '../../services/api';
 import './Layout.css';
 
 const Sidebar = ({ collapsed, isMobileOpen, toggleSidebar, closeMobileSidebar }) => {
@@ -20,12 +21,13 @@ const Sidebar = ({ collapsed, isMobileOpen, toggleSidebar, closeMobileSidebar })
       roles: ['admin']
     },
     {
-      path: '/admin/dashboard?action=add-work',
+      path: '/admin/add-work',
       icon: 'fas fa-file-signature',
       label: 'Add Work',
       roles: ['admin']
     },
     { path: '/manager/work-pool', icon: 'fas fa-layer-group', label: 'Available Work', roles: ['manager'] },
+    { path: '/departments', icon: 'fas fa-building', label: 'Department View', roles: ['admin', 'manager'] },
     { path: '/tasks', icon: 'fas fa-project-diagram', label: 'Task Status', roles: ['admin', 'manager', 'staff'] },
     { path: '/notifications', icon: 'fas fa-bell', label: 'Messages', roles: ['admin', 'manager', 'staff'] },
     { path: '/reports', icon: 'fas fa-chart-line', label: 'Analytics', roles: ['admin', 'manager'] },
@@ -75,8 +77,19 @@ const Sidebar = ({ collapsed, isMobileOpen, toggleSidebar, closeMobileSidebar })
         {!collapsed && (
           <div className="sidebar-footer p-3 mt-auto">
             <div className="rounded-3 p-3 bg-white bg-opacity-10">
-              <p className="extra-small text-white-50 mb-0">Logged in as</p>
-              <p className="small mb-0 text-white truncate-1">{user?.fullName}</p>
+              <div className="d-flex align-items-center mb-2">
+                {user?.profileImage ? (
+                  <img src={`${IMAGE_BASE_URL}/${user.profileImage}`} alt="" className="rounded-circle me-2" style={{ width: '32px', height: '32px', objectFit: 'cover' }} />
+                ) : (
+                  <div className="avatar xs bg-primary text-white me-2 rounded-circle" style={{ width: '32px', height: '32px', fontSize: '0.7rem', lineHeight: '32px', textAlign: 'center' }}>
+                    {user?.fullName?.charAt(0)}
+                  </div>
+                )}
+                <div className="flex-grow-1 overflow-hidden">
+                  <p className="extra-small text-white-50 mb-0">Logged in as</p>
+                  <p className="small mb-0 text-white truncate-1">{user?.fullName}</p>
+                </div>
+              </div>
               {user?.department && (
                 <p className="extra-small text-white-50 mt-1 truncate-1">
                   <i className="fas fa-building me-1"></i> {user.department}

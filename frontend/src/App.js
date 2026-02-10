@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 // Layout Components
 import Layout from './components/Layout/Layout';
@@ -15,6 +16,7 @@ import Register from './components/Auth/Register';
 // Admin Pages
 import AdminDashboard from './components/Admin/Dashboard';
 import UserManagement from './components/Admin/UserManagement';
+import AddWork from './components/Admin/AddWork';
 
 // Manager Pages
 import ManagerDashboard from './components/Manager/Dashboard';
@@ -31,6 +33,7 @@ import TaskDetails from './components/Staff/TaskDetails';
 import Notifications from './components/Shared/Notifications';
 import TaskStatus from './components/Shared/TaskStatus';
 import Reports from './components/Shared/Reports';
+import DepartmentView from './components/Shared/DepartmentView';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -63,7 +66,8 @@ function App() {
     return (
         <QueryClientProvider client={queryClient}>
             <AuthProvider>
-                <Router>
+                <NotificationProvider>
+                    <Router>
                     <Toaster position="top-right" />
                     <Routes>
                         {/* Auth Routes */}
@@ -76,6 +80,7 @@ function App() {
                         {/* Admin Routes */}
                         <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
                         <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><UserManagement /></ProtectedRoute>} />
+                        <Route path="/admin/add-work" element={<ProtectedRoute allowedRoles={['admin']}><AddWork /></ProtectedRoute>} />
 
                         {/* Manager Routes */}
                         <Route path="/manager/dashboard" element={<ProtectedRoute allowedRoles={['manager', 'admin']}><ManagerDashboard /></ProtectedRoute>} />
@@ -91,11 +96,13 @@ function App() {
                         <Route path="/tasks/:id" element={<ProtectedRoute allowedRoles={['staff', 'manager', 'admin']}><TaskDetails /></ProtectedRoute>} />
                         <Route path="/notifications" element={<ProtectedRoute allowedRoles={['staff', 'manager', 'admin']}><Notifications /></ProtectedRoute>} />
                         <Route path="/reports" element={<ProtectedRoute allowedRoles={['admin', 'manager']}><Reports /></ProtectedRoute>} />
+                        <Route path="/departments" element={<ProtectedRoute allowedRoles={['admin', 'manager']}><DepartmentView /></ProtectedRoute>} />
 
                         {/* Fallback */}
                         <Route path="*" element={<Navigate to="/login" />} />
                     </Routes>
                 </Router>
+                </NotificationProvider>
             </AuthProvider>
         </QueryClientProvider>
     );

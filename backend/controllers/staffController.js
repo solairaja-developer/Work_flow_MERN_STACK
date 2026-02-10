@@ -141,7 +141,7 @@ exports.updateTaskProgress = async (req, res) => {
         const task = await Task.findOne({
             _id: id,
             assignedTo: staffId
-        });
+        }).populate('assignedTo', 'fullName department');
 
         if (!task) {
             return res.status(404).json({
@@ -149,6 +149,8 @@ exports.updateTaskProgress = async (req, res) => {
                 message: 'Task not found or not assigned to you'
             });
         }
+
+        const oldStatus = task.status;
 
         // Update task
         if (status) task.status = status;
@@ -169,18 +171,67 @@ exports.updateTaskProgress = async (req, res) => {
 
         await task.save();
 
-        // Create notification for manager
-        if (status && status !== task.status) {
-            const notification = new Notification({
-                user: task.assignedBy,
-                type: 'task_updated',
-                title: 'Task Status Updated',
-                message: `${req.user.fullName} updated task "${task.title}" to ${status}`,
-                link: `/tasks/${task._id}`,
-                createdBy: staffId
+        // Create notifications for manager and admin when status changes
+        if (status && status !== oldStatus) {
+            // Find all admins
+            const admins = await User.find({ role: 'admin' });
+            
+            // Find manager of the same department
+            const manager = await User.findOne({ 
+                role: 'manager', 
+                department: task.assignedTo.department 
             });
 
-            await notification.save();
+            const notificationMessage = `${req.user.fullName} updated task "${task.title}" from ${oldStatus} to ${status}`;
+            const notifications = [];
+
+            // Notify all admins
+            for (const admin of admins) {
+                notifications.push({
+                    user: admin._id,
+                    type: 'task_updated',
+                    title: 'Task Status Updated',
+                    message: notificationMessage,
+                    link: `/tasks/${task._id}`,
+                    sender: staffId,
+                    senderName: req.user.fullName
+                });
+            }
+
+            // Notify manager if exists and not the same as staff
+            if (manager && manager._id.toString() !== staffId) {
+                notifications.push({
+                    user: manager._id,
+                    type: 'task_updated',
+                    title: 'Task Status Updated',
+                    message: notificationMessage,
+                    link: `/tasks/${task._id}`,
+                    sender: staffId,
+                    senderName: req.user.fullName
+                });
+            }
+
+            // Also notify the task creator if different from manager/admin
+            if (task.createdBy && task.createdBy.toString() !== staffId) {
+                const isAlreadyNotified = notifications.some(
+                    n => n.user.toString() === task.createdBy.toString()
+                );
+                
+                if (!isAlreadyNotified) {
+                    notifications.push({
+                        user: task.createdBy,
+                        type: 'task_updated',
+                        title: 'Task Status Updated',
+                        message: notificationMessage,
+                        link: `/tasks/${task._id}`,
+                        sender: staffId,
+                        senderName: req.user.fullName
+                    });
+                }
+            }
+
+            // Save all notifications
+            await Notification.insertMany(notifications);
         }
 
         res.json({
@@ -206,7 +257,7 @@ exports.addTaskComment = async (req, res) => {
         const task = await Task.findOne({
             _id: id,
             assignedTo: staffId
-        });
+        }).populate('assignedTo', 'fullName department');
 
         if (!task) {
             return res.status(404).json({
@@ -221,6 +272,69 @@ exports.addTaskComment = async (req, res) => {
         });
 
         await task.save();
+
+        // Create notifications for manager and admin when comment is added
+        // Find all admins
+        const admins = await User.find({ role: 'admin' });
+        
+        // Find manager of the same department
+        const manager = await User.findOne({ 
+            role: 'manager', 
+            department: task.assignedTo.department 
+        });
+
+        const notificationMessage = `${req.user.fullName} added a comment on task "${task.title}": "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`;
+        const notifications = [];
+
+        // Notify all admins
+        for (const admin of admins) {
+            notifications.push({
+                user: admin._id,
+                type: 'task_comment',
+                title: 'New Comment on Task',
+                message: notificationMessage,
+                link: `/tasks/${task._id}`,
+                sender: staffId,
+                senderName: req.user.fullName
+            });
+        }
+
+        // Notify manager if exists and not the same as staff
+        if (manager && manager._id.toString() !== staffId) {
+            notifications.push({
+                user: manager._id,
+                type: 'task_comment',
+                title: 'New Comment on Task',
+                message: notificationMessage,
+                link: `/tasks/${task._id}`,
+                sender: staffId,
+                senderName: req.user.fullName
+            });
+        }
+
+        // Also notify the task creator if different from manager/admin
+        if (task.createdBy && task.createdBy.toString() !== staffId) {
+            const isAlreadyNotified = notifications.some(
+                n => n.user.toString() === task.createdBy.toString()
+            );
+            
+            if (!isAlreadyNotified) {
+                notifications.push({
+                    user: task.createdBy,
+                    type: 'task_comment',
+                    title: 'New Comment on Task',
+                    message: notificationMessage,
+                    link: `/tasks/${task._id}`,
+                    sender: staffId,
+                    senderName: req.user.fullName
+                });
+            }
+        }
+
+        // Save all notifications
+        if (notifications.length > 0) {
+            await Notification.insertMany(notifications);
+        }
 
         res.json({
             success: true,

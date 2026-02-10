@@ -39,6 +39,18 @@ exports.markAllAsRead = async (req, res) => {
   }
 };
 
+exports.getUnreadCount = async (req, res) => {
+  try {
+    const count = await Notification.countDocuments({
+      user: req.user.id,
+      isRead: false
+    });
+    res.json({ count });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 exports.createNotification = async (req, res) => {
   try {
     const { user, type, title, message, link, senderName } = req.body;

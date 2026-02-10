@@ -8,6 +8,7 @@ const roleMiddleware = require('../middleware/roleMiddleware');
 router.get('/', auth, roleMiddleware(['admin', 'manager', 'staff']), notificationController.getNotifications);
 router.put('/:id/read', auth, roleMiddleware(['admin', 'manager', 'staff']), notificationController.markAsRead);
 router.put('/read-all', auth, roleMiddleware(['admin', 'manager', 'staff']), notificationController.markAllAsRead);
+router.get('/unread-count', auth, roleMiddleware(['admin', 'manager', 'staff']), notificationController.getUnreadCount);
 router.post('/', auth, roleMiddleware(['admin', 'manager']), notificationController.createNotification);
 
 module.exports = router;

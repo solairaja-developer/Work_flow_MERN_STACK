@@ -24,9 +24,30 @@ const Register = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        // Full Validation
+        if (formData.fullName.trim().length < 3) {
+            return toast.error('Full Name must be at least 3 characters');
+        }
+
+        if (formData.username.trim().length < 4) {
+            return toast.error('Username must be at least 4 characters');
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+            return toast.error('Please enter a valid email address');
+        }
+
+        if (formData.password.length < 6) {
+            return toast.error('Password must be at least 6 characters');
+        }
+
         if (formData.password !== formData.confirmPassword) {
-            toast.error('Passwords do not match');
-            return;
+            return toast.error('Passwords do not match');
+        }
+
+        if (!formData.department) {
+            return toast.error('Please select a department');
         }
 
         setLoading(true);

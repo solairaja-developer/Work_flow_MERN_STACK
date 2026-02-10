@@ -6,7 +6,6 @@ exports.createTask = async (req, res) => {
   try {
     const {
       title,
-      category,
       assignedTo,
       priority,
       startDate,
@@ -15,7 +14,7 @@ exports.createTask = async (req, res) => {
     } = req.body;
 
     console.log('Creating task with data:', {
-      title, category, assignedTo, priority, startDate, dueDate, description
+      title, assignedTo, priority, startDate, dueDate, description
     });
 
     // Check if assigned user exists
@@ -24,15 +23,9 @@ exports.createTask = async (req, res) => {
       return res.status(404).json({ message: 'Assigned user not found' });
     }
 
-    // Generate workId before creating task
-    const workId = await Task.generateWorkId();
-    console.log('Generated workId:', workId);
-
-    // Create task with explicit workId
+    // Create task
     const task = new Task({
-      workId, // Set workId explicitly
       title,
-      category,
       assignedTo,
       createdBy: req.user.id,
       priority: priority || 'medium',
@@ -80,11 +73,10 @@ exports.createTask = async (req, res) => {
 
 exports.getAllTasks = async (req, res) => {
   try {
-    const { status, category, priority, assignedTo } = req.query;
+    const { status, priority, assignedTo } = req.query;
     const filter = {};
 
     if (status) filter.status = status;
-    if (category) filter.category = category;
     if (priority) filter.priority = priority;
     if (assignedTo) filter.assignedTo = assignedTo;
 

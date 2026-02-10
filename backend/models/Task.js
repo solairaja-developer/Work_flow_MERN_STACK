@@ -16,11 +16,6 @@ const taskSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    category: {
-        type: String,
-        enum: ['Diary', 'Note Book', 'Calendar'],
-        required: true
-    },
     assignedTo: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
@@ -30,6 +25,11 @@ const taskSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
+    },
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: false
     },
     department: {
         type: String,

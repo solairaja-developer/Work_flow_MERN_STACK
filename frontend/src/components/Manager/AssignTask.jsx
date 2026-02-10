@@ -10,7 +10,6 @@ const AssignTask = () => {
         title: '',
         description: '',
         assignedTo: '',
-        category: '',
         priority: 'medium',
         dueDate: ''
     });
@@ -33,7 +32,6 @@ const AssignTask = () => {
                     setFormData({
                         title: data.task.title,
                         description: data.task.description,
-                        category: data.task.category,
                         priority: data.task.priority,
                         dueDate: data.task.dueDate ? new Date(data.task.dueDate).toISOString().split('T')[0] : '',
                         assignedTo: ''
@@ -70,8 +68,18 @@ const AssignTask = () => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        
+        if (!formData.title.trim()) return toast.error('Task title is required');
+        if (!formData.description.trim()) return toast.error('Task description is required');
+        if (!formData.dueDate) return toast.error('Due date is required');
+        
+        const selectedDate = new Date(formData.dueDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (selectedDate < today) return toast.error('Due date cannot be in the past');
+
         if (!formData.assignedTo) {
-            toast.error('Please select a team member');
+            toast.error('Please select a team member from the list');
             return;
         }
 
@@ -142,25 +150,6 @@ const AssignTask = () => {
                                         required
                                         readOnly={!!taskId}
                                     />
-                                </div>
-
-                                <div className="col-md-6">
-                                    <label className="form-label small fw-bold">
-                                        <i className="fas fa-tags text-primary me-2"></i>Category
-                                    </label>
-                                    <select
-                                        name="category"
-                                        className="form-select rounded-3"
-                                        value={formData.category}
-                                        onChange={handleChange}
-                                        required
-                                        disabled={!!taskId}
-                                    >
-                                        <option value="">Select Category</option>
-                                        <option value="Diary">Diary</option>
-                                        <option value="Note Book">Note Book</option>
-                                        <option value="Calendar">Calendar</option>
-                                    </select>
                                 </div>
 
                                 <div className="col-md-6">

@@ -1,8 +1,11 @@
 // frontend/src/services/api.js
 import axios from 'axios';
 
+export const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+export const IMAGE_BASE_URL = API_URL.replace('/api', '');
+
 const API = axios.create({
-    baseURL: 'https://work-flow-mern-stack.vercel.app/api',
+    baseURL: API_URL,
     headers: {
         'Content-Type': 'application/json'
     }
@@ -52,7 +55,8 @@ export const adminAPI = {
     getTasks: (params) => API.get('/admin/tasks', { params }),
     getUnassignedTasks: (params) => API.get('/admin/tasks/unassigned', { params }),
     createTask: (data) => API.post('/admin/tasks', data),
-    updateTask: (id, data) => API.put(`/admin/tasks/${id}`, data)
+    updateTask: (id, data) => API.put(`/admin/tasks/${id}`, data),
+    getStaffPerformance: (id) => API.get(`/manager/performance/${id}`) // Reusing manager route for now if needed or add admin one
 };
 
 // Manager API
@@ -64,7 +68,8 @@ export const managerAPI = {
     addStaff: (data) => API.post('/manager/team', data),
     getDepartmentTasks: (params) => API.get('/manager/tasks', { params }),
     getTaskDetails: (id) => API.get(`/manager/tasks/${id}`),
-    getPerformance: () => API.get('/manager/performance')
+    getPerformance: () => API.get('/manager/performance'),
+    getStaffPerformance: (id) => API.get(`/manager/performance/${id}`)
 };
 
 // Staff API
@@ -75,6 +80,14 @@ export const staffAPI = {
     addComment: (id, data) => API.post(`/staff/tasks/${id}/comments`, data),
     getNotifications: () => API.get('/staff/notifications'),
     markNotificationRead: (id) => API.put(`/staff/notifications/${id}/read`)
+};
+
+// Notification API
+export const notificationAPI = {
+    getAll: () => API.get('/notifications'),
+    markAsRead: (id) => API.put(`/notifications/${id}/read`),
+    markAllAsRead: () => API.put('/notifications/read-all'),
+    unreadCount: () => API.get('/notifications/unread-count')
 };
 
 // General/Shared API

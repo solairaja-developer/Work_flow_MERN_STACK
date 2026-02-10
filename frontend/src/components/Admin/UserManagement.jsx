@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
-import { adminAPI, managerAPI } from '../../services/api';
+import { adminAPI, managerAPI, IMAGE_BASE_URL } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
 const UserManagement = () => {
@@ -27,7 +27,11 @@ const UserManagement = () => {
 
     const { data, isLoading } = useQuery(
         ['users'],
-        () => isAdmin ? adminAPI.getUsers() : managerAPI.getTeam()
+        () => isAdmin ? adminAPI.getUsers() : managerAPI.getTeam(),
+        {
+            refetchInterval: 20000, // Auto-refresh every 20 seconds
+            refetchOnWindowFocus: true
+        }
     );
 
     const users = isAdmin ? (data?.users || []) : (data?.team || []);
@@ -149,9 +153,19 @@ const UserManagement = () => {
                                     <td className="fw-bold text-primary">{user.staffId || 'N/A'}</td>
                                     <td>
                                         <div className="d-flex align-items-center">
-                                            <div className="avatar sm bg-light me-2 rounded-circle text-center" style={{ width: '30px', height: '30px', fontSize: '0.8rem', lineHeight: '30px' }}>
-                                                {user.fullName?.charAt(0)}
-                                            </div>
+                                            {user.profileImage ? (
+                                                <img 
+                                                    src={`${IMAGE_BASE_URL}/${user.profileImage}`} 
+                                                    alt={user.fullName} 
+                                                    className="avatar sm me-2 rounded-circle border shadow-sm"
+                                                    style={{ width: '32px', height: '32px', objectFit: 'cover' }}
+                                                    onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=' + user.fullName; }}
+                                                />
+                                            ) : (
+                                                <div className="avatar sm bg-light me-2 rounded-circle text-center" style={{ width: '32px', height: '32px', fontSize: '0.8rem', lineHeight: '32px' }}>
+                                                    {user.fullName?.charAt(0)}
+                                                </div>
+                                            )}
                                             {user.fullName}
                                         </div>
                                     </td>
@@ -227,8 +241,11 @@ const UserModal = ({ show, onClose, onSubmit, loading, user = null, isAdmin }) =
         role: user?.role || 'staff',
         department: user?.department || '',
         phone: user?.phone || '',
-        position: user?.position || 'Staff'
+        position: user?.position || 'Staff',
+        profileImage: null
     });
+
+    const [previewUrl, setPreviewUrl] = useState(user?.profileImage ? `${IMAGE_BASE_URL}/${user.profileImage}` : null);
 
     React.useEffect(() => {
         if (user) {
@@ -251,20 +268,68 @@ const UserModal = ({ show, onClose, onSubmit, loading, user = null, isAdmin }) =
                 role: 'staff',
                 department: '',
                 phone: '',
-                position: 'Staff'
+                position: 'Staff',
+                profileImage: null
             });
+            setPreviewUrl(null);
         }
     }, [user]);
 
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setFormData({ ...formData, profileImage: file });
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setPreviewUrl(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
-        onSubmit(formData);
+        
+        // Full Validation
+        if (formData.fullName.trim().length < 3) {
+            toast.error('Full Name must be at least 3 characters');
+            return;
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+            toast.error('Please enter a valid email address');
+            return;
+        }
+
+        if (formData.username.trim().length < 4) {
+            toast.error('Username must be at least 4 characters');
+            return;
+        }
+
+        if (!user && formData.password.length < 6) {
+            toast.error('Password must be at least 6 characters');
+            return;
+        }
+
+        if (isAdmin && !formData.department) {
+            toast.error('Please select a department');
+            return;
+        }
+
+        const data = new FormData();
+        Object.keys(formData).forEach(key => {
+            if (formData[key] !== null && formData[key] !== '') {
+                data.append(key, formData[key]);
+            }
+        });
+        onSubmit(data);
     };
 
     if (!show) return null;
 
     return (
-        <div className="modal show d-block" tabIndex="-1" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+        <div className="modal show d-block" tabIndex="-1" style={{ background: 'rgba(0,0,0,0.5)' }}>
             <div className="modal-dialog modal-dialog-centered modal-lg">
                 <div className="modal-content border-0 rounded-4 shadow-lg">
                     <div className="modal-header border-0 pb-0">
@@ -277,6 +342,30 @@ const UserModal = ({ show, onClose, onSubmit, loading, user = null, isAdmin }) =
                     <form onSubmit={handleSubmit}>
                         <div className="modal-body py-4">
                             <div className="row g-3">
+                                <div className="col-12 text-center mb-3">
+                                    <div className="position-relative d-inline-block">
+                                        <div className="avatar-upload rounded-circle border overflow-hidden shadow-sm" style={{ width: '100px', height: '100px', margin: '0 auto', background: '#f8f9fa' }}>
+                                            {previewUrl ? (
+                                                <img src={previewUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            ) : (
+                                                <div className="h-100 d-flex align-items-center justify-content-center text-muted">
+                                                    <i className="fas fa-user-circle fa-4x"></i>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <label htmlFor="imageUpload" className="btn btn-sm btn-primary position-absolute bottom-0 end-0 rounded-circle" style={{ width: '32px', height: '32px', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff' }}>
+                                            <i className="fas fa-camera"></i>
+                                        </label>
+                                        <input 
+                                            type="file" 
+                                            id="imageUpload" 
+                                            accept="image/*" 
+                                            className="d-none" 
+                                            onChange={handleFileChange} 
+                                        />
+                                    </div>
+                                    <p className="mt-2 small text-muted">Click to upload profile photo</p>
+                                </div>
                                 <div className="col-md-6">
                                     <label className="form-label small fw-bold">Full Name *</label>
                                     <input

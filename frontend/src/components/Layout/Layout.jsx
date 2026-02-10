@@ -1,12 +1,14 @@
 // src/components/Layout/Layout.jsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationContext';
 import Sidebar from './Sidebar';
 import './Layout.css';
 
 const Layout = ({ children }) => {
     const { user, logout } = useAuth();
+    const { unreadCount } = useNotifications();
     const navigate = useNavigate();
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -48,9 +50,14 @@ const Layout = ({ children }) => {
                     </div>
 
                     <div className="d-flex align-items-center gap-3">
-                        <div className="btn-icon">
+                        <Link to="/notifications" className="btn-icon position-relative">
                             <i className="fas fa-bell"></i>
-                        </div>
+                            {unreadCount > 0 && (
+                                <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.6rem' }}>
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                </span>
+                            )}
+                        </Link>
 
                         <div className="user-profile d-flex align-items-center gap-2 cursor-pointer" onClick={() => navigate('/profile')}>
                             <div className="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px' }}>

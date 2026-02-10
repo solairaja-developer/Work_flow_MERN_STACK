@@ -7,7 +7,7 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['task_assigned', 'task_completed', 'task_updated', 'message', 'system', 'warning', 'info'],
+    enum: ['task_assigned', 'task_completed', 'task_updated', 'task_comment', 'message', 'system', 'warning', 'info'],
     default: 'info'
   },
   title: {
