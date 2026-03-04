@@ -156,7 +156,9 @@ exports.updateTaskProgress = async (req, res) => {
         if (status) task.status = status;
         if (progress !== undefined) task.progress = progress;
 
-        if (status === 'completed') {
+        // Auto-complete if progress reaches 100% or status is set to completed
+        if (status === 'completed' || (progress === 100 && task.status !== 'completed')) {
+            task.status = 'completed';
             task.completedDate = new Date();
             task.progress = 100;
         }
@@ -171,8 +173,11 @@ exports.updateTaskProgress = async (req, res) => {
 
         await task.save();
 
-        // Create notifications for manager and admin when status changes
-        if (status && status !== oldStatus) {
+        // Create notifications for manager and admin when status or progress changes
+        const progressChanged = progress !== undefined && progress !== task.progress;
+        const statusChanged = status && status !== oldStatus;
+
+        if (statusChanged || progressChanged) {
             // Find all admins
             const admins = await User.find({ role: 'admin' });
             
@@ -182,56 +187,60 @@ exports.updateTaskProgress = async (req, res) => {
                 department: task.assignedTo.department 
             });
 
-            const notificationMessage = `${req.user.fullName} updated task "${task.title}" from ${oldStatus} to ${status}`;
+            let notificationMessage = '';
+            let notificationTitle = 'Task Updated';
+
+            if (statusChanged && progressChanged) {
+                notificationMessage = `${req.user.fullName} updated task "${task.title}": Status to ${status.replace('_', ' ')} and Progress to ${progress}%`;
+                notificationTitle = 'Task Status & Progress Updated';
+            } else if (statusChanged) {
+                notificationMessage = `${req.user.fullName} updated task "${task.title}" status from ${oldStatus.replace('_', ' ')} to ${status.replace('_', ' ')}`;
+                notificationTitle = 'Task Status Updated';
+            } else {
+                notificationMessage = `${req.user.fullName} updated progress for "${task.title}" to ${task.progress}%`;
+                notificationTitle = 'Task Progress Updated';
+            }
+
             const notifications = [];
+
+            // Helper to add notification
+            const addNotification = (userId) => {
+                if (userId.toString() === staffId) return;
+                notifications.push({
+                    user: userId,
+                    type: 'task_updated',
+                    title: notificationTitle,
+                    message: notificationMessage,
+                    link: `/tasks/${task._id}`,
+                    sender: staffId,
+                    senderName: req.user.fullName
+                });
+            };
 
             // Notify all admins
             for (const admin of admins) {
-                notifications.push({
-                    user: admin._id,
-                    type: 'task_updated',
-                    title: 'Task Status Updated',
-                    message: notificationMessage,
-                    link: `/tasks/${task._id}`,
-                    sender: staffId,
-                    senderName: req.user.fullName
-                });
+                addNotification(admin._id);
             }
 
-            // Notify manager if exists and not the same as staff
-            if (manager && manager._id.toString() !== staffId) {
-                notifications.push({
-                    user: manager._id,
-                    type: 'task_updated',
-                    title: 'Task Status Updated',
-                    message: notificationMessage,
-                    link: `/tasks/${task._id}`,
-                    sender: staffId,
-                    senderName: req.user.fullName
-                });
+            // Notify manager if exists
+            if (manager) {
+                addNotification(manager._id);
             }
 
-            // Also notify the task creator if different from manager/admin
-            if (task.createdBy && task.createdBy.toString() !== staffId) {
+            // Also notify the task creator
+            if (task.createdBy) {
                 const isAlreadyNotified = notifications.some(
                     n => n.user.toString() === task.createdBy.toString()
                 );
-                
                 if (!isAlreadyNotified) {
-                    notifications.push({
-                        user: task.createdBy,
-                        type: 'task_updated',
-                        title: 'Task Status Updated',
-                        message: notificationMessage,
-                        link: `/tasks/${task._id}`,
-                        sender: staffId,
-                        senderName: req.user.fullName
-                    });
+                    addNotification(task.createdBy);
                 }
             }
 
             // Save all notifications
-            await Notification.insertMany(notifications);
+            if (notifications.length > 0) {
+                await Notification.insertMany(notifications);
+            }
         }
 
         res.json({
@@ -274,7 +283,6 @@ exports.addTaskComment = async (req, res) => {
         await task.save();
 
         // Create notifications for manager and admin when comment is added
-        // Find all admins
         const admins = await User.find({ role: 'admin' });
         
         // Find manager of the same department
@@ -283,52 +291,45 @@ exports.addTaskComment = async (req, res) => {
             department: task.assignedTo.department 
         });
 
-        const notificationMessage = `${req.user.fullName} added a comment on task "${task.title}": "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`;
+        const notificationMessage = `${req.user.fullName} commented on "${task.title}": "${text.substring(0, 60)}${text.length > 60 ? '...' : ''}"`;
         const notifications = [];
 
-        // Notify all admins
-        for (const admin of admins) {
-            notifications.push({
-                user: admin._id,
-                type: 'task_comment',
-                title: 'New Comment on Task',
-                message: notificationMessage,
-                link: `/tasks/${task._id}`,
-                sender: staffId,
-                senderName: req.user.fullName
-            });
-        }
-
-        // Notify manager if exists and not the same as staff
-        if (manager && manager._id.toString() !== staffId) {
-            notifications.push({
-                user: manager._id,
-                type: 'task_comment',
-                title: 'New Comment on Task',
-                message: notificationMessage,
-                link: `/tasks/${task._id}`,
-                sender: staffId,
-                senderName: req.user.fullName
-            });
-        }
-
-        // Also notify the task creator if different from manager/admin
-        if (task.createdBy && task.createdBy.toString() !== staffId) {
-            const isAlreadyNotified = notifications.some(
-                n => n.user.toString() === task.createdBy.toString()
-            );
+        // Helper to add notification
+        const addNotification = (userId) => {
+            if (!userId || userId.toString() === staffId) return;
             
-            if (!isAlreadyNotified) {
-                notifications.push({
-                    user: task.createdBy,
-                    type: 'task_comment',
-                    title: 'New Comment on Task',
-                    message: notificationMessage,
-                    link: `/tasks/${task._id}`,
-                    sender: staffId,
-                    senderName: req.user.fullName
-                });
-            }
+            // Check if already in list
+            if (notifications.some(n => n.user.toString() === userId.toString())) return;
+
+            notifications.push({
+                user: userId,
+                type: 'task_comment',
+                title: 'New Task Comment',
+                message: notificationMessage,
+                link: `/tasks/${task._id}`,
+                sender: staffId,
+                senderName: req.user.fullName
+            });
+        };
+
+        // 1. Notify all admins
+        for (const admin of admins) {
+            addNotification(admin._id);
+        }
+
+        // 2. Notify department manager
+        if (manager) {
+            addNotification(manager._id);
+        }
+
+        // 3. Notify the person who assigned the task
+        if (task.assignedBy) {
+            addNotification(task.assignedBy);
+        }
+
+        // 4. Notify the task creator (if different from assigner)
+        if (task.createdBy) {
+            addNotification(task.createdBy);
         }
 
         // Save all notifications
@@ -352,20 +353,34 @@ exports.addTaskComment = async (req, res) => {
 // Get Task Details
 exports.getTaskDetails = async (req, res) => {
     try {
-        const staffId = req.user.id;
         const { id } = req.params;
+        const { id: userId, role, department } = req.user;
 
-        const task = await Task.findOne({
-            _id: id,
-            assignedTo: staffId
-        })
-            .populate('assignedBy', 'fullName email')
-            .populate('comments.user', 'fullName');
+        let query = { _id: id };
+
+        // Role-based visibility logic
+        if (role === 'admin') {
+            // Admin can see everything, no extra filter
+        } else if (role === 'manager') {
+            // Manager can see tasks in their department
+            query.department = department;
+        } else {
+            // Staff can only see assigned tasks
+            query.assignedTo = userId;
+        }
+
+        const task = await Task.findOne(query)
+            .populate('assignedBy', 'fullName email photo')
+            .populate('assignedTo', 'fullName email photo')
+            .populate('comments.user', 'fullName photo');
 
         if (!task) {
             return res.status(404).json({
-                success: false,
-                message: 'Task not found or not assigned to you'
+                success: true, // Send success: true but null task for frontend handling if needed, 
+                               // or stay with 404. The prompt says "Task details not found", 
+                               // which is handled by frontend if task is null.
+                task: null,
+                message: 'Task not found or permission denied'
             });
         }
 
@@ -374,10 +389,7 @@ exports.getTaskDetails = async (req, res) => {
             task
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 

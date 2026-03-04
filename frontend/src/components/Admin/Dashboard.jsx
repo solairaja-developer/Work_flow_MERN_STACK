@@ -4,6 +4,31 @@ import { useQuery } from 'react-query';
 import { adminAPI, IMAGE_BASE_URL } from '../../services/api';
 import { Link, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    PointElement,
+    LineElement,
+    ArcElement,
+    Title,
+    Tooltip,
+    Legend
+} from 'chart.js';
+import { Bar, Pie } from 'react-chartjs-2';
+
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    PointElement,
+    LineElement,
+    ArcElement,
+    Title,
+    Tooltip,
+    Legend
+);
 
 const AdminDashboard = () => {
     const [showTaskModal, setShowTaskModal] = React.useState(false);
@@ -15,6 +40,9 @@ const AdminDashboard = () => {
         assignedTo: '',
         dueDate: ''
     });
+
+    const [performanceReport, setPerformanceReport] = React.useState(null);
+    const [isGeneratingReport, setIsGeneratingReport] = React.useState(false);
 
     const { data: dashboardData, isLoading, refetch } = useQuery(
         ['adminDashboard'],
@@ -30,7 +58,16 @@ const AdminDashboard = () => {
         ['allUsers'],
         () => adminAPI.getUsers(),
         {
-            refetchInterval: 30000, // Refresh every 30 seconds
+            refetchInterval: 30000,
+            refetchOnWindowFocus: true
+        }
+    );
+
+    const { data: adminAnalytics, isLoading: analyticsLoading } = useQuery(
+        ['adminAnalytics'],
+        () => adminAPI.getAnalytics(),
+        {
+            refetchInterval: 30000,
             refetchOnWindowFocus: true
         }
     );
@@ -46,6 +83,28 @@ const AdminDashboard = () => {
             setShowTaskModal(true);
         }
     }, [location.search]);
+
+    const handlePrintReport = async () => {
+        try {
+            setIsGeneratingReport(true);
+            const response = await adminAPI.getStaffPerformanceReport();
+            if (response.success) {
+                setPerformanceReport(response.report);
+                // Small delay to ensure state is updated before print dialog opens
+                setTimeout(() => {
+                    window.print();
+                    setIsGeneratingReport(false);
+                }, 500);
+            } else {
+                toast.error('Failed to generate report');
+                setIsGeneratingReport(false);
+            }
+        } catch (error) {
+            console.error('Error fetching performance report:', error);
+            toast.error('Error generating report');
+            setIsGeneratingReport(false);
+        }
+    };
 
     if (isLoading) {
         return (
@@ -75,8 +134,18 @@ const AdminDashboard = () => {
                     <button className="btn btn-primary py-2 px-4 shadow-sm rounded-pill" onClick={() => setShowTaskModal(true)}>
                         <i className="fas fa-plus-circle me-2"></i> Add Work
                     </button>
-                    <button className="btn-premium py-2 px-4 shadow-sm" onClick={() => window.print()}>
-                        <i className="fas fa-file-export"></i> Export Report
+                    <button 
+                        className="btn-premium rounded-circle shadow-sm d-flex align-items-center justify-content-center" 
+                        style={{ width: '42px', height: '42px', padding: 0 }} 
+                        onClick={handlePrintReport}
+                        disabled={isGeneratingReport}
+                        title="Print Staff Performance Report"
+                    >
+                        {isGeneratingReport ? (
+                            <span className="spinner-border spinner-border-sm" role="status"></span>
+                        ) : (
+                            <i className="fas fa-print"></i>
+                        )}
                     </button>
                 </div>
             </div>
@@ -191,7 +260,7 @@ const AdminDashboard = () => {
             )}
 
             {/* Stats Cards */}
-            <div className="row g-4 mb-5">
+            <div className="row g-4 mb-4">
                 {[
                     { label: 'Global Tasks', value: stats?.tasks?.total || 0, icon: 'fas fa-layer-group', color: 'primary', trend: 'Total Work' },
                     { label: 'Pending', value: stats?.tasks?.pending || 0, icon: 'fas fa-clock', color: 'warning', trend: 'To Start' },
@@ -213,6 +282,75 @@ const AdminDashboard = () => {
                         </div>
                     </div>
                 ))}
+            </div>
+
+            {/* Strategic Insights (Graphs) */}
+            <div className="row g-4 mb-5">
+                <div className="col-lg-8">
+                    <div className="premium-card h-100">
+                        <div className="d-flex justify-content-between align-items-center mb-4">
+                            <h5 className="mb-0 small text-uppercase fw-bold text-muted ls-1">Department Performance Index</h5>
+                            <Link to="/reports" className="btn btn-sm btn-link text-primary text-decoration-none small">Detailed Analytics <i className="fas fa-chevron-right ms-1"></i></Link>
+                        </div>
+                        <div style={{ height: '300px' }}>
+                            {analyticsLoading ? (
+                                <div className="h-100 d-flex align-items-center justify-content-center">
+                                    <div className="spinner-border text-primary-light"></div>
+                                </div>
+                            ) : (
+                                <Bar 
+                                    data={{
+                                        labels: adminAnalytics?.analytics?.departmentPerformance?.map(d => d.department) || [],
+                                        datasets: [{
+                                            label: 'On-Time Delivery Rate %',
+                                            data: adminAnalytics?.analytics?.departmentPerformance?.map(d => Math.round(d.onTimeRate)) || [],
+                                            backgroundColor: '#4361ee',
+                                            borderRadius: 8
+                                        }]
+                                    }} 
+                                    options={{ 
+                                        maintainAspectRatio: false,
+                                        plugins: { legend: { display: false } },
+                                        scales: { 
+                                            y: { 
+                                                beginAtZero: true, 
+                                                max: 100,
+                                                title: { display: true, text: 'OTD Index (%)', font: { size: 10 } }
+                                            } 
+                                        }
+                                    }} 
+                                />
+                            )}
+                        </div>
+                    </div>
+                </div>
+                <div className="col-lg-4">
+                    <div className="premium-card h-100">
+                        <h5 className="mb-4 small text-uppercase fw-bold text-muted ls-1">Global Status Mix</h5>
+                        <div style={{ height: '300px' }}>
+                            {analyticsLoading ? (
+                                <div className="h-100 d-flex align-items-center justify-content-center">
+                                    <div className="spinner-border text-primary-light"></div>
+                                </div>
+                            ) : (
+                                <Pie 
+                                    data={{
+                                        labels: adminAnalytics?.analytics?.taskStatusDistribution?.map(s => s._id?.toUpperCase()) || [],
+                                        datasets: [{
+                                            data: adminAnalytics?.analytics?.taskStatusDistribution?.map(s => s.count) || [],
+                                            backgroundColor: ['#4361ee', '#06d6a0', '#4cc9f0', '#ffd166', '#ef476f'],
+                                            borderWidth: 0
+                                        }]
+                                    }} 
+                                    options={{ 
+                                        maintainAspectRatio: false,
+                                        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
+                                    }} 
+                                />
+                            )}
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div className="row g-4">
@@ -245,6 +383,7 @@ const AdminDashboard = () => {
                                         <th>Assigned To</th>
                                         <th>Status</th>
                                         <th>Progress</th>
+                                        <th className="text-end">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -268,6 +407,11 @@ const AdminDashboard = () => {
                                                     </div>
                                                     <small className="extra-small text-muted">{activity.progress || 0}%</small>
                                                 </div>
+                                            </td>
+                                            <td className="text-end">
+                                                <Link to={`/tasks/${activity._id}`} className="btn-icon bg-light text-primary mx-auto" title="View Details">
+                                                    <i className="fas fa-eye"></i>
+                                                </Link>
                                             </td>
                                         </tr>
                                     ))}
@@ -319,8 +463,69 @@ const AdminDashboard = () => {
                     </div>
                 </div>
             </div>
-        </div>
-    );
+
+        {/* Staff Performance printable Report */}
+        {performanceReport && (
+            <div className="print-only">
+                <div className="print-report-header">
+                    <h2 className="fw-bold text-uppercase mb-1">Staff Performance Audit Report</h2>
+                    <p className="text-muted small">Generated on: {new Date().toLocaleString()}</p>
+                    <div className="d-flex justify-content-between mt-3 px-4">
+                        <p><strong>Entity:</strong> Admin Dashboard</p>
+                        <p><strong>Classification:</strong> Internal Operations</p>
+                    </div>
+                </div>
+
+                {performanceReport.map((deptData, idx) => (
+                    <div key={idx} className="mb-5">
+                        <h5 className="border-bottom pb-2 mb-3">Department: {deptData._id}</h5>
+                        <table className="print-table">
+                            <thead>
+                                <tr>
+                                    <th>Staff Name</th>
+                                    <th>Staff ID</th>
+                                    <th className="text-center">Finished</th>
+                                    <th className="text-center">Incomplete</th>
+                                    <th className="text-center">Delay</th>
+                                    <th className="text-center">Success Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {deptData.staffMembers.map((staff, sIdx) => {
+                                    const total = staff.finished + staff.incomplete;
+                                    const successRate = total > 0 ? Math.round((staff.finished / total) * 100) : 0;
+                                    return (
+                                        <tr key={sIdx}>
+                                            <td><strong>{staff.name}</strong></td>
+                                            <td>{staff.staffId || 'N/A'}</td>
+                                            <td className="text-center text-success">{staff.finished}</td>
+                                            <td className="text-center">{staff.incomplete}</td>
+                                            <td className="text-center text-danger">{staff.delayed}</td>
+                                            <td className="text-center">
+                                                <span className={`fw-bold ${successRate >= 80 ? 'text-success' : successRate >= 50 ? 'text-warning' : 'text-danger'}`}>
+                                                    {successRate}%
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                ))}
+
+                <div className="signature-area mt-5">
+                    <div className="sig-box">
+                        <p className="small mb-0">Authorized Admin Signature</p>
+                    </div>
+                    <div className="sig-box">
+                        <p className="small mb-0">System Timestamp Verification</p>
+                    </div>
+                </div>
+            </div>
+        )}
+    </div>
+);
 };
 
 export default AdminDashboard;

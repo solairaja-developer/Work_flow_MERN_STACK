@@ -104,6 +104,13 @@ h6 {
   box-shadow: var(--shadow-lg);
 }
 
+@media (max-width: 768px) {
+  .premium-card {
+    padding: 1rem;
+    border-radius: var(--radius-md);
+  }
+}
+
 .glass-morphism {
   background: var(--glass-bg);
   backdrop-filter: var(--glass-blur);
@@ -288,4 +295,171 @@ h6 {
 .btn-icon:hover {
   background: var(--gray-200);
   color: var(--primary);
+}
+
+/* Utility Classes */
+.extra-small { 
+  font-size: 0.65rem; 
+  font-weight: 600; 
+  text-transform: uppercase; 
+  letter-spacing: 0.05em; 
+}
+.fw-500 { font-weight: 500; }
+.ls-1 { letter-spacing: 1px; }
+.truncate-1 { 
+  display: -webkit-box; 
+  -webkit-line-clamp: 1; 
+  line-clamp: 1; 
+  -webkit-box-orient: vertical; 
+  overflow: hidden; 
+}
+
+.bg-primary-light { background: rgba(67, 97, 238, 0.1) !important; color: var(--primary) !important; }
+.bg-success-light { background: rgba(6, 214, 160, 0.1) !important; color: var(--success) !important; }
+.bg-warning-light { background: rgba(255, 209, 102, 0.1) !important; color: var(--warning) !important; }
+.bg-info-light { background: rgba(17, 138, 178, 0.1) !important; color: var(--info) !important; }
+.bg-danger-light { background: rgba(239, 71, 111, 0.1) !important; color: var(--danger) !important; }
+
+.hover-bg-light:hover { background-color: var(--gray-50) !important; }
+.hover-scale:hover { transform: scale(1.1); transition: transform 0.2s ease; }
+
+.animate-up { animation: slideUp 0.4s ease-out; }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+.btn-xs { padding: 2px 8px; font-size: 0.65rem; }
+
+/* Range Slider Styling */
+.progress-slider {
+  width: 100%;
+  height: 6px;
+  background: var(--gray-200);
+  border-radius: 10px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.progress-slider::-webkit-slider-thumb {
+  width: 18px;
+  height: 18px;
+  background: var(--primary);
+  border: 3px solid var(--white);
+  border-radius: 50%;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  -webkit-appearance: none;
+  margin-top: -6px;
+  transition: all 0.2s;
+}
+
+.progress-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: var(--shadow-md);
+}
+
+.progress-slider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 6px;
+  cursor: pointer;
+  background: var(--gray-200);
+  border-radius: 10px;
+}
+
+
+/* Print Styles */
+@media print {
+  body {
+    background: white !important;
+    padding: 0 !important;
+    margin: 5mm !important;
+    font-size: 10pt !important;
+  }
+
+  /* Hide UI elements */
+  .btn, .btn-premium, .btn-icon, .form-control, .form-range, .progress-slider, 
+  .sidebar, nav, .navbar, .no-print, .modal, .toast, .comment-feed,
+  .quick-actions-card, .btn-group, .d-flex.gap-2, .d-grid {
+    display: none !important;
+  }
+
+  .premium-card {
+    box-shadow: none !important;
+    border: none !important;
+    transform: none !important;
+    padding: 0 !important;
+    margin-bottom: 10px !important;
+  }
+
+  .print-only {
+    display: block !important;
+    max-width: 800px !important;
+    margin: 0 auto !important;
+  }
+
+  .print-report-header {
+    border-bottom: 3px solid var(--primary) !important;
+    margin-bottom: 25px !important;
+    padding-bottom: 10px !important;
+    text-align: center !important;
+  }
+
+  .print-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-bottom: 15px !important;
+    border: 2px solid #333 !important;
+  }
+
+  .print-table th, .print-table td {
+    border: 1px solid #333 !important;
+    padding: 10px 15px !important;
+    font-size: 10pt !important;
+    line-height: 1.4 !important;
+  }
+
+  .print-table th {
+    background-color: #f2f2f2 !important;
+    color: #000 !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  h5.border-bottom {
+    font-size: 12pt !important;
+    margin-top: 15px !important;
+    margin-bottom: 10px !important;
+    color: var(--primary) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+  }
+
+  .work-description-box {
+    border: 1px solid #333 !important;
+    padding: 15px !important;
+    min-height: 150px !important;
+    font-size: 10pt !important;
+    line-height: 1.6 !important;
+    background: white !important;
+  }
+
+  .signature-area {
+    margin-top: 50px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    padding: 0 50px !important;
+  }
+
+  .sig-box {
+    text-align: center !important;
+    width: 220px !important;
+    border-top: 2px solid #333 !important;
+    padding-top: 10px !important;
+  }
+}
+
+.print-only {
+  display: none;
 }

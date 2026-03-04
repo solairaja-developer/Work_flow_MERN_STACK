@@ -31,5 +31,6 @@ router.delete('/tasks/:id', adminController.deleteTask);
 // Reports
 router.get('/reports/users', adminController.generateUserReport);
 router.get('/reports/tasks', adminController.generateTaskReport);
+router.get('/reports/staff-performance', adminController.getStaffPerformanceReport);
 
 module.exports = router;

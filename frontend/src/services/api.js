@@ -43,7 +43,7 @@ export const authAPI = {
 // Admin API
 export const adminAPI = {
     getDashboardStats: () => API.get('/admin/dashboard'),
-    getAnalytics: () => API.get('/admin/analytics'),
+    getAnalytics: (params) => API.get('/admin/analytics', { params }),
 
     // User Management
     getUsers: (params) => API.get('/admin/users', { params }),
@@ -56,7 +56,8 @@ export const adminAPI = {
     getUnassignedTasks: (params) => API.get('/admin/tasks/unassigned', { params }),
     createTask: (data) => API.post('/admin/tasks', data),
     updateTask: (id, data) => API.put(`/admin/tasks/${id}`, data),
-    getStaffPerformance: (id) => API.get(`/manager/performance/${id}`) // Reusing manager route for now if needed or add admin one
+    getStaffPerformance: (id) => API.get(`/manager/performance/${id}`),
+    getStaffPerformanceReport: () => API.get('/admin/reports/staff-performance')
 };
 
 // Manager API
@@ -69,13 +70,16 @@ export const managerAPI = {
     getDepartmentTasks: (params) => API.get('/manager/tasks', { params }),
     getTaskDetails: (id) => API.get(`/manager/tasks/${id}`),
     getPerformance: () => API.get('/manager/performance'),
-    getStaffPerformance: (id) => API.get(`/manager/performance/${id}`)
+    getStaffPerformance: (id) => API.get(`/manager/performance/${id}`),
+    getAnalytics: () => API.get('/manager/analytics'),
+    getDetailedReport: (params) => API.get('/manager/report-details', { params })
 };
 
 // Staff API
 export const staffAPI = {
     getDashboard: () => API.get('/staff/dashboard'),
     getMyTasks: (params) => API.get('/staff/tasks', { params }),
+    getTaskDetails: (id) => API.get(`/staff/tasks/${id}`),
     updateTaskProgress: (id, data) => API.put(`/staff/tasks/${id}/progress`, data),
     addComment: (id, data) => API.post(`/staff/tasks/${id}/comments`, data),
     getNotifications: () => API.get('/staff/notifications'),

@@ -282,6 +282,85 @@ exports.generateTaskReport = async (req, res) => {
     }
 };
 
+// Get Staff Performance Report (Department Wise)
+exports.getStaffPerformanceReport = async (req, res) => {
+    try {
+        const staffPerformance = await User.aggregate([
+            {
+                $match: {
+                    role: { $in: ['staff', 'manager'] },
+                    status: 'active'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'tasks',
+                    localField: '_id',
+                    foreignField: 'assignedTo',
+                    as: 'tasks'
+                }
+            },
+            {
+                $project: {
+                    _id: 1,
+                    name: "$fullName",
+                    staffId: 1,
+                    department: 1,
+                    finished: {
+                        $size: {
+                            $filter: {
+                                input: "$tasks",
+                                as: "t",
+                                cond: { $eq: ["$$t.status", "completed"] }
+                            }
+                        }
+                    },
+                    incomplete: {
+                        $size: {
+                            $filter: {
+                                input: "$tasks",
+                                as: "t",
+                                cond: { $in: ["$$t.status", ["pending", "in_progress"]] }
+                            }
+                        }
+                    },
+                    delayed: {
+                        $size: {
+                            $filter: {
+                                input: "$tasks",
+                                as: "t",
+                                cond: {
+                                    $and: [
+                                        { $eq: ["$$t.status", "completed"] },
+                                        { $gt: [{ $ifNull: ["$$t.completedDate", "$$t.updatedAt"] }, "$$t.dueDate"] }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: "$department",
+                    staffMembers: { $push: "$$ROOT" }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        res.json({
+            success: true,
+            report: staffPerformance
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
 // Dashboard Stats
 exports.getDashboardStats = async (req, res) => {
     try {
@@ -342,37 +421,137 @@ exports.getDashboardStats = async (req, res) => {
     }
 };
 
-// Get Analytics
+// Get Analytics (Enterprise Grade)
 exports.getAnalytics = async (req, res) => {
     try {
-        // Task distribution by department
-        const taskDistribution = await Task.aggregate([
-            { $group: { _id: '$department', count: { $sum: 1 } } }
+        const { startDate, endDate, department } = req.query;
+        
+        const start = startDate ? new Date(startDate) : new Date(new Date().setDate(new Date().getDate() - 30));
+        const end = endDate ? new Date(endDate) : new Date();
+        end.setHours(23, 59, 59, 999);
+
+        // Define expected departments
+        const ALL_DEPARTMENTS = department ? [department] : ['Diary', 'Note Book', 'Calendar'];
+
+        // 1. Departmental Performance Audit (OTD & Volume)
+        let matchStage = {};
+        if (department) matchStage.department = department;
+
+        let departmentPerformance = await Task.aggregate([
+            { $match: matchStage },
+            {
+                $group: {
+                    _id: '$department',
+                    total: { $sum: 1 },
+                    completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+                    onTime: { 
+                        $sum: { 
+                            $cond: [
+                                { $and: [{ $eq: ['$status', 'completed'] }, { $lte: [{ $ifNull: ['$completedDate', '$updatedAt'] }, '$dueDate'] }] },
+                                1, 0
+                            ] 
+                        } 
+                    },
+                    overdue: {
+                        $sum: {
+                            $cond: [
+                                { $and: [{ $in: ['$status', ['pending', 'in_progress']] }, { $lt: ['$dueDate', new Date()] }] },
+                                1, 0
+                            ]
+                        }
+                    },
+                    avgLeadTime: {
+                        $avg: {
+                            $cond: [
+                                { $eq: ['$status', 'completed'] },
+                                { $divide: [{ $subtract: [{ $ifNull: ['$completedDate', '$updatedAt'] }, '$createdAt'] }, 86400000] }, // Convert ms to days
+                                null
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                $project: {
+                    department: '$_id',
+                    total: 1,
+                    completed: 1,
+                    onTimeRate: {
+                        $multiply: [{ $divide: ['$onTime', { $cond: [{ $eq: ['$completed', 0] }, 1, '$completed'] }] }, 100]
+                    },
+                    overdue: 1,
+                    avgLeadTime: { $round: ['$avgLeadTime', 1] }
+                }
+            }
         ]);
 
-        // User distribution by role
+        // Filter out any departments that are not in our primary list (e.g., null, empty, or old test data)
+        const PRIMARY_DEPARTMENTS = ['Diary', 'Note Book', 'Calendar'];
+        departmentPerformance = departmentPerformance.filter(d => 
+            d.department && PRIMARY_DEPARTMENTS.includes(d.department)
+        );
+
+        // Ensure all departments are present in the response
+        const existingDeps = departmentPerformance.map(d => d.department);
+        ALL_DEPARTMENTS.forEach(dept => {
+            if (!existingDeps.includes(dept)) {
+                departmentPerformance.push({
+                    department: dept,
+                    total: 0,
+                    completed: 0,
+                    onTimeRate: 0,
+                    overdue: 0,
+                    avgLeadTime: 0
+                });
+            }
+        });
+
+        departmentPerformance.sort((a, b) => b.onTimeRate - a.onTimeRate);
+
+        // 2. High-Precision Completion Trend
+        let trendMatch = {
+            status: 'completed',
+            $or: [
+                { completedDate: { $gte: start, $lte: end } },
+                { completedDate: { $exists: false }, updatedAt: { $gte: start, $lte: end } }
+            ]
+        };
+        if (department) trendMatch.department = department;
+
+        const completionTrend = await Task.aggregate([
+            { $match: trendMatch },
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: { $ifNull: ["$completedDate", "$updatedAt"] } } },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        // 3. System Load Distribution
         const userDistribution = await User.aggregate([
+            { $match: department ? { department } : {} },
             { $group: { _id: '$role', count: { $sum: 1 } } }
         ]);
 
-        // Task completion rate (simple calculation)
-        const totalTasks = await Task.countDocuments();
-        const completedTasks = await Task.countDocuments({ status: 'completed' });
-        const completionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+        const taskStatusDistribution = await Task.aggregate([
+            { $match: department ? { department } : {} },
+            { $group: { _id: '$status', count: { $sum: 1 } } }
+        ]);
 
         res.json({
             success: true,
             analytics: {
-                taskDistribution,
+                departmentPerformance,
+                completionTrend,
                 userDistribution,
-                completionRate: Math.round(completionRate * 100) / 100
+                taskStatusDistribution,
+                meta: { start, end, department: department || 'All' }
             }
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 

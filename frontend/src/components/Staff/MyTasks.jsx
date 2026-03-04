@@ -7,6 +7,9 @@ import toast from 'react-hot-toast';
 
 const MyTasks = () => {
     const [filter, setFilter] = useState('all');
+    const [showModal, setShowModal] = useState(false);
+    const [selectedTask, setSelectedTask] = useState(null);
+    const [tempProgress, setTempProgress] = useState(0);
     const queryClient = useQueryClient();
 
     const { data: tasksData, isLoading } = useQuery(
@@ -40,6 +43,22 @@ const MyTasks = () => {
             id: taskId,
             data: { status }
         });
+    };
+
+    const openProgressModal = (task) => {
+        setSelectedTask(task);
+        setTempProgress(task.progress);
+        setShowModal(true);
+    };
+
+    const saveProgress = () => {
+        if (selectedTask) {
+            updateMutation.mutate({
+                id: selectedTask._id,
+                data: { progress: tempProgress }
+            });
+            setShowModal(false);
+        }
     };
 
     if (isLoading) {
@@ -122,10 +141,11 @@ const MyTasks = () => {
                                         {task.status !== 'completed' && (
                                             <>
                                                 <button
-                                                    className="btn btn-sm btn-success"
-                                                    onClick={() => handleUpdateProgress(task._id, Math.min(task.progress + 25, 100))}
+                                                    className="btn btn-sm btn-outline-success"
+                                                    onClick={() => openProgressModal(task)}
+                                                    title="Adjust Progress"
                                                 >
-                                                    +25%
+                                                    <i className="fas fa-percentage me-1"></i> Update
                                                 </button>
                                                 <button
                                                     className="btn btn-sm btn-primary"
@@ -154,6 +174,68 @@ const MyTasks = () => {
                     <i className="fas fa-tasks fa-3x text-muted mb-3"></i>
                     <h4>No tasks found</h4>
                     <p className="text-muted">You don't have any tasks assigned yet.</p>
+                </div>
+            )}
+
+            {/* Progress Update Modal */}
+            {showModal && (
+                <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content premium-card border-0">
+                            <div className="modal-header border-0">
+                                <h5 className="modal-title fw-bold">Update Execution Progress</h5>
+                                <button type="button" className="btn-close" onClick={() => setShowModal(false)}></button>
+                            </div>
+                            <div className="modal-body py-4">
+                                <div className="text-center mb-4">
+                                    <h6 className="text-muted mb-2">{selectedTask?.title}</h6>
+                                    <div className="display-4 fw-bold text-primary">{tempProgress}%</div>
+                                </div>
+                                
+                                <div className="d-flex align-items-center gap-3 mb-4">
+                                    <button 
+                                        className="btn btn-icon bg-light text-primary rounded-circle"
+                                        onClick={() => setTempProgress(prev => Math.max(0, prev - 1))}
+                                    >
+                                        <i className="fas fa-minus"></i>
+                                    </button>
+                                    
+                                    <input 
+                                        type="range" 
+                                        className="form-range flex-grow-1 progress-slider" 
+                                        min="0" 
+                                        max="100" 
+                                        value={tempProgress} 
+                                        onChange={(e) => setTempProgress(parseInt(e.target.value))}
+                                    />
+                                    
+                                    <button 
+                                        className="btn btn-icon bg-light text-primary rounded-circle"
+                                        onClick={() => setTempProgress(prev => Math.min(100, prev + 1))}
+                                    >
+                                        <i className="fas fa-plus"></i>
+                                    </button>
+                                </div>
+
+                                <div className="row g-2">
+                                    {[0, 25, 50, 75, 100].map(val => (
+                                        <div key={val} className="col">
+                                            <button 
+                                                className={`btn btn-sm w-100 rounded-pill ${tempProgress === val ? 'btn-primary' : 'btn-outline-light text-dark border'}`}
+                                                onClick={() => setTempProgress(val)}
+                                            >
+                                                {val}%
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="modal-footer border-0">
+                                <button type="button" className="btn btn-light rounded-pill px-4" onClick={() => setShowModal(false)}>Cancel</button>
+                                <button type="button" className="btn btn-primary rounded-pill px-4" onClick={saveProgress}>Save Progress</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

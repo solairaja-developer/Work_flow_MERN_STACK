@@ -86,7 +86,7 @@ const AddWork = () => {
                     <p className="text-muted mb-0 small">Create and assign work to departments and staff members</p>
                 </div>
                 <button
-                    className="btn btn-light rounded-pill px-3 px-md-4 w-100 w-md-auto"
+                    className="btn btn-light rounded-pill px-3 px-md-4 w-md-auto"
                     onClick={() => navigate('/admin/dashboard')}
                 >
                     <i className="fas fa-arrow-left me-2"></i> Back to Dashboard

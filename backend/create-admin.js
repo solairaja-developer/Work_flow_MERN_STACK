@@ -57,7 +57,7 @@ async function createAdminUser() {
         fullName: 'System Administrator',
         role: 'admin',
         department: 'Diary',
-        phone: '1234567890',
+        phone: '979185245',
         status: 'active',
         joinDate: new Date(),
         createdAt: new Date(),

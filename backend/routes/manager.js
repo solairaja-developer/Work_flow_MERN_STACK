@@ -29,4 +29,8 @@ router.patch('/tasks/:id/status', managerController.updateTaskStatus);
 router.get('/performance', managerController.getTeamPerformance);
 router.get('/performance/:id', managerController.getMemberPerformance);
 
+// Analytics & Reports
+router.get('/analytics', managerController.getManagerAnalytics);
+router.get('/report-details', managerController.getDepartmentReport);
+
 module.exports = router;

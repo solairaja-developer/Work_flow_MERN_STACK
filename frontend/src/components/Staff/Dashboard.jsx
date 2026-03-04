@@ -1,15 +1,19 @@
 // frontend/src/components/Staff/Dashboard.jsx
 import React from 'react';
-import { useQuery } from 'react-query';
-import { staffAPI } from '../../services/api';
-import { Link } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { staffAPI, notificationAPI } from '../../services/api';
+import { Link, useNavigate } from 'react-router-dom';
 
 const StaffDashboard = () => {
+    const queryClient = useQueryClient();
+    const navigate = useNavigate();
+    const [selectedNotif, setSelectedNotif] = React.useState(null);
+
     const { data: dashboardData, isLoading } = useQuery(
         ['staffDashboard'],
         staffAPI.getDashboard,
         {
-            refetchInterval: 15000, // Auto-refresh every 15 seconds
+            refetchInterval: 15000,
             refetchOnWindowFocus: true
         }
     );
@@ -18,10 +22,26 @@ const StaffDashboard = () => {
         ['notifications'],
         staffAPI.getNotifications,
         {
-            refetchInterval: 20000, // Refresh every 20 seconds
+            refetchInterval: 20000,
             refetchOnWindowFocus: true
         }
     );
+
+    const markReadMutation = useMutation(
+        (id) => notificationAPI.markAsRead(id),
+        {
+            onSuccess: () => {
+                queryClient.invalidateQueries(['notifications']);
+            }
+        }
+    );
+
+    const handleNotifClick = (notif) => {
+        setSelectedNotif(notif);
+        if (!notif.isRead) {
+            markReadMutation.mutate(notif._id);
+        }
+    };
 
     if (isLoading) {
         return (
@@ -136,12 +156,17 @@ const StaffDashboard = () => {
                         <div className="notification-list" style={{ maxHeight: '300px', overflowY: 'auto' }}>
                             {notifications?.length > 0 ? (
                                 notifications.map((notif) => (
-                                    <div key={notif._id} className="p-3 mb-2 rounded-3 bg-light border-start border-4 border-primary">
+                                    <div 
+                                        key={notif._id} 
+                                        className={`p-3 mb-2 rounded-3 cursor-pointer transition-all hover-bg-light border-start border-4 ${notif.isRead ? 'bg-light border-light' : 'bg-white border-primary shadow-sm'}`}
+                                        onClick={() => handleNotifClick(notif)}
+                                        style={{ cursor: 'pointer' }}
+                                    >
                                         <div className="d-flex justify-content-between align-items-start">
-                                            <h6 className="mb-1" style={{ fontSize: '0.85rem' }}>{notif.title}</h6>
+                                            <h6 className={`mb-1 ${notif.isRead ? 'text-muted' : 'fw-bold'}`} style={{ fontSize: '0.85rem' }}>{notif.title}</h6>
                                             <small className="text-muted" style={{ fontSize: '0.7rem' }}>{new Date(notif.createdAt).toLocaleDateString()}</small>
                                         </div>
-                                        <p className="mb-0 text-muted small">{notif.message}</p>
+                                        <p className="mb-0 text-muted small truncate-1">{notif.message}</p>
                                     </div>
                                 ))
                             ) : (
@@ -173,6 +198,47 @@ const StaffDashboard = () => {
                     </div>
                 </div>
             </div>
+            {/* Notification View Modal */}
+            {selectedNotif && (
+                <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content border-0 rounded-4 shadow-lg animate-up">
+                            <div className="modal-header border-0 pb-0">
+                                <h5 className="modal-title fw-bold">Message Details</h5>
+                                <button type="button" className="btn-close" onClick={() => setSelectedNotif(null)}></button>
+                            </div>
+                            <div className="modal-body p-4">
+                                <div className="d-flex align-items-center gap-3 mb-4 p-3 bg-light rounded-3">
+                                    <div className="btn-icon rounded-circle bg-primary text-white">
+                                        <i className={selectedNotif.type === 'task_assigned' ? 'fas fa-tasks' : 'fas fa-bell'}></i>
+                                    </div>
+                                    <div>
+                                        <h6 className="mb-0 fw-bold">{selectedNotif.title}</h6>
+                                        <small className="text-muted">{new Date(selectedNotif.createdAt).toLocaleString()}</small>
+                                    </div>
+                                </div>
+                                
+                                <div className="p-3 border rounded-3 bg-white mb-4">
+                                    <p className="mb-0 text-dark" style={{ lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                                        {selectedNotif.message}
+                                    </p>
+                                </div>
+
+                                <div className="d-flex gap-2">
+                                    {selectedNotif.link && (
+                                        <button className="btn btn-primary w-100 rounded-pill py-2 fw-bold" onClick={() => { navigate(selectedNotif.link); setSelectedNotif(null); }}>
+                                            <i className="fas fa-external-link-alt me-2"></i> Go to Task
+                                        </button>
+                                    )}
+                                    <button className="btn btn-light w-100 rounded-pill py-2 fw-bold" onClick={() => setSelectedNotif(null)}>
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

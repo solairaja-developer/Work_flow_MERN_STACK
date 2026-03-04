@@ -90,6 +90,19 @@ exports.getManagerDashboard = async (req, res) => {
             .sort({ createdAt: -1 })
             .limit(8);
 
+        // Attach taskStats to teamMembers
+        const teamWithStats = teamMembers.map(member => {
+            const perf = teamPerformance.find(p => p.userId.toString() === member._id.toString());
+            return {
+                ...member.toObject(),
+                taskStats: perf ? {
+                    total: perf.totalTasks,
+                    completed: perf.completedTasks,
+                    pending: perf.totalTasks - perf.completedTasks
+                } : { total: 0, completed: 0, pending: 0 }
+            };
+        });
+
         res.json({
             success: true,
             dashboard: {
@@ -103,7 +116,7 @@ exports.getManagerDashboard = async (req, res) => {
                     completionRate: totalTasks > 0 ?
                         Math.round((completedTasks / totalTasks) * 100) : 0
                 },
-                teamMembers,
+                teamMembers: teamWithStats,
                 teamPerformance,
                 recentActivities
             }
@@ -518,6 +531,193 @@ exports.getTeamPerformance = async (req, res) => {
             success: false,
             message: error.message
         });
+    }
+};
+
+// Get Manager Analytics Data (Enterprise Grade)
+exports.getManagerAnalytics = async (req, res) => {
+    try {
+        const department = req.user.department;
+        const { startDate, endDate } = req.query;
+        
+        const start = startDate ? new Date(startDate) : new Date(new Date().setDate(new Date().getDate() - 30));
+        const end = endDate ? new Date(endDate) : new Date();
+        end.setHours(23, 59, 59, 999);
+
+        // 1. High-Precision Completion Metrics
+        const completionMetrics = await Task.aggregate([
+            { 
+                $match: { 
+                    department, 
+                    status: 'completed',
+                    $or: [
+                        { completedDate: { $gte: start, $lte: end } },
+                        { completedDate: { $exists: false }, updatedAt: { $gte: start, $lte: end } }
+                    ]
+                } 
+            },
+            {
+                $group: {
+                    _id: null,
+                    count: { $sum: 1 },
+                    onTime: { 
+                        $sum: { 
+                            $cond: [{ $lte: [{ $ifNull: ["$completedDate", "$updatedAt"] }, "$dueDate"] }, 1, 0] 
+                        } 
+                    },
+                    avgLeadTime: {
+                        $avg: { $divide: [{ $subtract: [{ $ifNull: ["$completedDate", "$updatedAt"] }, "$createdAt"] }, 86400000] }
+                    }
+                }
+            }
+        ]);
+
+        const metrics = completionMetrics[0] || { count: 0, onTime: 0, avgLeadTime: 0 };
+
+        // 2. Productivity Trend (Daily)
+        const dailyTrend = await Task.aggregate([
+            {
+                $match: {
+                    department,
+                    status: 'completed',
+                    $or: [
+                        { completedDate: { $gte: start, $lte: end } },
+                        { completedDate: { $exists: false }, updatedAt: { $gte: start, $lte: end } }
+                    ]
+                }
+            },
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: { $ifNull: ["$completedDate", "$updatedAt"] } } },
+                    completed: { $sum: 1 }
+                }
+            },
+            { $sort: { "_id": 1 } }
+        ]);
+
+        // 3. Status Mix
+        const statusDistribution = await Task.aggregate([
+            { $match: { department } },
+            { $group: { _id: "$status", count: { $sum: 1 } } }
+        ]);
+
+        // 4. Staff Excellence Leaderboard
+        const staffLeaderboard = await Task.aggregate([
+            { 
+                $match: { 
+                    department, 
+                    status: 'completed',
+                    $or: [
+                        { completedDate: { $gte: start, $lte: end } },
+                        { completedDate: { $exists: false }, updatedAt: { $gte: start, $lte: end } }
+                    ]
+                } 
+            },
+            {
+                $group: {
+                    _id: "$assignedTo",
+                    completed: { $sum: 1 },
+                    onTime: { 
+                        $sum: { $cond: [{ $lte: [{ $ifNull: ["$completedDate", "$updatedAt"] }, "$dueDate"] }, 1, 0] } 
+                    }
+                }
+            },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "user"
+                }
+            },
+            { $unwind: "$user" },
+            {
+                $project: {
+                    name: "$user.fullName",
+                    completed: 1,
+                    onTimeRate: { $round: [{ $multiply: [{ $divide: ["$onTime", "$completed"] }, 100] }, 1] }
+                }
+            },
+            { $sort: { completed: -1 } },
+            { $limit: 10 }
+        ]);
+
+        res.json({
+            success: true,
+            analytics: {
+                summary: {
+                    total: metrics.count,
+                    onTime: metrics.onTime,
+                    delayed: metrics.count - metrics.onTime,
+                    avgLeadTime: Math.round(metrics.avgLeadTime * 10) / 10
+                },
+                trend: dailyTrend,
+                categories: statusDistribution,
+                performance: staffLeaderboard,
+                meta: { start, end }
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Get Detailed Department Report
+exports.getDepartmentReport = async (req, res) => {
+    try {
+        const { startDate, endDate, department: queryDept } = req.query;
+        
+        let query = {};
+        
+        // Admin can see all or specific, managers locked to theirs
+        if (req.user.role === 'admin') {
+            if (queryDept) query.department = queryDept;
+        } else {
+            query.department = req.user.department;
+        }
+
+        if (startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+
+            query.$or = [
+                { createdAt: { $gte: start, $lte: end } },
+                { completedDate: { $gte: start, $lte: end } },
+                { status: 'completed', completedDate: { $exists: false }, updatedAt: { $gte: start, $lte: end } }
+            ];
+        }
+
+        const tasks = await Task.find(query)
+            .populate('assignedTo', 'fullName staffId')
+            .populate('assignedBy', 'fullName')
+            .sort({ createdAt: 1 });
+
+        // Calculate metrics
+        const summary = {
+            total: tasks.length,
+            completed: tasks.filter(t => t.status === 'completed').length,
+            pending: tasks.filter(t => t.status !== 'completed').length,
+            onTime: tasks.filter(t => t.status === 'completed' && t.completedDate <= t.dueDate).length,
+            delayed: tasks.filter(t => t.status === 'completed' && t.completedDate > t.dueDate).length
+        };
+
+        res.json({
+            success: true,
+            report: {
+                summary,
+                tasks: tasks.map(t => {
+                    const finishDate = t.completedDate || (t.status === 'completed' ? t.updatedAt : null);
+                    return {
+                        ...t.toObject(),
+                        completedDate: finishDate,
+                        isOnTime: t.status === 'completed' ? (finishDate <= t.dueDate) : null
+                    };
+                })
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 

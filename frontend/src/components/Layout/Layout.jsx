@@ -20,6 +20,22 @@ const Layout = ({ children }) => {
 
     return (
         <div className="layout">
+            {/* Mobile Overlay Backdrop */}
+            {mobileOpen && (
+                <div 
+                    className="mobile-overlay" 
+                    onClick={() => setMobileOpen(false)}
+                ></div>
+            )}
+
+            {/* Mobile Overlay Backdrop */}
+            {mobileOpen && (
+                <div 
+                    className="mobile-overlay" 
+                    onClick={() => setMobileOpen(false)}
+                ></div>
+            )}
+
             <Sidebar
                 collapsed={collapsed}
                 isMobileOpen={mobileOpen}
