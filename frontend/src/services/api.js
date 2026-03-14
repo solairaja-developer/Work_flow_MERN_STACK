@@ -71,7 +71,7 @@ export const managerAPI = {
     getTaskDetails: (id) => API.get(`/manager/tasks/${id}`),
     getPerformance: () => API.get('/manager/performance'),
     getStaffPerformance: (id) => API.get(`/manager/performance/${id}`),
-    getAnalytics: () => API.get('/manager/analytics'),
+    getAnalytics: (params) => API.get('/manager/analytics', { params }),
     getDetailedReport: (params) => API.get('/manager/report-details', { params })
 };
 
@@ -83,7 +83,8 @@ export const staffAPI = {
     updateTaskProgress: (id, data) => API.put(`/staff/tasks/${id}/progress`, data),
     addComment: (id, data) => API.post(`/staff/tasks/${id}/comments`, data),
     getNotifications: () => API.get('/staff/notifications'),
-    markNotificationRead: (id) => API.put(`/staff/notifications/${id}/read`)
+    markNotificationRead: (id) => API.put(`/staff/notifications/${id}/read`),
+    getAnalytics: () => API.get('/staff/analytics')
 };
 
 // Notification API

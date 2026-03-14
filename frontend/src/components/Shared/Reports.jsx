@@ -32,7 +32,7 @@ const Reports = () => {
 
     const { data: managerAnalytics, isLoading: mAnalyticsLoading } = useQuery(
         ['managerAnalytics', dateRange],
-        () => managerAPI.getManagerAnalytics(dateRange),
+        () => managerAPI.getAnalytics(dateRange),
         { enabled: user?.role === 'manager', refetchInterval: 60000 }
     );
 

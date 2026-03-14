@@ -41,19 +41,17 @@ async function createAdminUser() {
       // Update password to 'password' if needed
       const isPasswordCorrect = await bcrypt.compare('password', existingAdmin.password);
       if (!isPasswordCorrect) {
-        const hashedPassword = await bcrypt.hash('password', 10);
-        existingAdmin.password = hashedPassword;
+        existingAdmin.password = 'password';
         await existingAdmin.save();
         console.log('🔑 Password reset to: password');
       }
     } else {
       // Create new admin user
-      const hashedPassword = await bcrypt.hash('password', 10);
       
       const adminUser = new User({
         username: 'admin',
         email: 'admin@example.com',
-        password: hashedPassword,
+        password: 'password',
         fullName: 'System Administrator',
         role: 'admin',
         department: 'Diary',
@@ -74,11 +72,10 @@ async function createAdminUser() {
     // Create a test staff user
     const staffUser = await User.findOne({ email: 'staff@example.com' });
     if (!staffUser) {
-      const staffHashedPassword = await bcrypt.hash('password123', 10);
       const newStaff = new User({
         username: 'staff',
         email: 'staff@example.com',
-        password: staffHashedPassword,
+        password: 'password123',
         fullName: 'Test Staff Member',
         role: 'staff',
         department: 'Note Book',

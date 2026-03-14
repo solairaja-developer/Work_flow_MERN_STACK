@@ -28,6 +28,7 @@ import WorkPool from './components/Manager/WorkPool';
 import StaffDashboard from './components/Staff/Dashboard';
 import MyTasks from './components/Staff/MyTasks';
 import TaskDetails from './components/Staff/TaskDetails';
+import StaffAnalytics from './components/Staff/Analytics';
 
 // Shared Pages
 import Notifications from './components/Shared/Notifications';
@@ -90,6 +91,7 @@ function App() {
 
                         {/* Staff Routes */}
                         <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['staff', 'manager', 'admin']}><StaffDashboard /></ProtectedRoute>} />
+                        <Route path="/staff/analytics" element={<ProtectedRoute allowedRoles={['staff']}><StaffAnalytics /></ProtectedRoute>} />
 
                         {/* Shared/Universal Routes */}
                         <Route path="/tasks" element={<ProtectedRoute allowedRoles={['staff', 'manager', 'admin']}><TaskStatus /></ProtectedRoute>} />

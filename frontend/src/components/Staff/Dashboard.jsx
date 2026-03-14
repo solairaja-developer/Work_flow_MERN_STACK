@@ -1,4 +1,3 @@
-// frontend/src/components/Staff/Dashboard.jsx
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { staffAPI, notificationAPI } from '../../services/api';
@@ -92,6 +91,8 @@ const StaffDashboard = () => {
                     </div>
                 ))}
             </div>
+
+
 
             <div className="row g-4">
                 {/* Recent Tasks Table */}

@@ -16,7 +16,7 @@ import {
     Tooltip,
     Legend
 } from 'chart.js';
-import { Bar, Pie } from 'react-chartjs-2';
+import { Bar, Pie, Line, Doughnut } from 'react-chartjs-2';
 
 ChartJS.register(
     CategoryScale,
@@ -125,7 +125,7 @@ const AdminDashboard = () => {
     return (
         <div className="container-fluid py-2">
             {/* Page Header */}
-            <div className="d-flex align-items-center justify-content-between mb-4">
+            <div className="d-flex align-items-center justify-content-between mb-4 no-print">
                 <div>
                     <h2 className="mb-0">System Overview</h2>
                     <p className="text-muted mb-0">Total system performance and user activity</p>
@@ -260,7 +260,7 @@ const AdminDashboard = () => {
             )}
 
             {/* Stats Cards */}
-            <div className="row g-4 mb-4">
+            <div className="row g-4 mb-4 no-print">
                 {[
                     { label: 'Global Tasks', value: stats?.tasks?.total || 0, icon: 'fas fa-layer-group', color: 'primary', trend: 'Total Work' },
                     { label: 'Pending', value: stats?.tasks?.pending || 0, icon: 'fas fa-clock', color: 'warning', trend: 'To Start' },
@@ -285,7 +285,7 @@ const AdminDashboard = () => {
             </div>
 
             {/* Strategic Insights (Graphs) */}
-            <div className="row g-4 mb-5">
+            <div className="row g-4 mb-4 no-print">
                 <div className="col-lg-8">
                     <div className="premium-card h-100">
                         <div className="d-flex justify-content-between align-items-center mb-4">
@@ -353,7 +353,74 @@ const AdminDashboard = () => {
                 </div>
             </div>
 
-            <div className="row g-4">
+            <div className="row g-4 mb-5 no-print">
+                <div className="col-lg-8">
+                    <div className="premium-card h-100">
+                        <h5 className="mb-4 small text-uppercase fw-bold text-muted ls-1">Completion Trend (Last 30 Days)</h5>
+                        <div style={{ height: '300px' }}>
+                            {analyticsLoading ? (
+                                <div className="h-100 d-flex align-items-center justify-content-center">
+                                    <div className="spinner-border text-primary-light"></div>
+                                </div>
+                            ) : (
+                                <Line 
+                                    data={{
+                                        labels: adminAnalytics?.analytics?.completionTrend?.map(t => t._id) || [],
+                                        datasets: [{
+                                            label: 'Completed Tasks',
+                                            data: adminAnalytics?.analytics?.completionTrend?.map(t => t.count) || [],
+                                            borderColor: '#06d6a0',
+                                            backgroundColor: 'rgba(6, 214, 160, 0.1)',
+                                            fill: true,
+                                            tension: 0.4
+                                        }]
+                                    }} 
+                                    options={{ 
+                                        maintainAspectRatio: false,
+                                        plugins: { legend: { display: false } },
+                                        scales: { 
+                                            y: { 
+                                                beginAtZero: true, 
+                                                ticks: { stepSize: 1 }
+                                            } 
+                                        }
+                                    }} 
+                                />
+                            )}
+                        </div>
+                    </div>
+                </div>
+                <div className="col-lg-4">
+                    <div className="premium-card h-100">
+                        <h5 className="mb-4 small text-uppercase fw-bold text-muted ls-1">Workload Priority Heatmap</h5>
+                        <div style={{ height: '300px' }}>
+                            {analyticsLoading ? (
+                                <div className="h-100 d-flex align-items-center justify-content-center">
+                                    <div className="spinner-border text-primary-light"></div>
+                                </div>
+                            ) : (
+                                <Doughnut 
+                                    data={{
+                                        labels: adminAnalytics?.analytics?.priorityDistribution?.map(p => p._id?.toUpperCase()) || [],
+                                        datasets: [{
+                                            data: adminAnalytics?.analytics?.priorityDistribution?.map(p => p.count) || [],
+                                            backgroundColor: ['#ef476f', '#f77f00', '#ffd166', '#118ab2'],
+                                            borderWidth: 0,
+                                            cutout: '75%'
+                                        }]
+                                    }} 
+                                    options={{ 
+                                        maintainAspectRatio: false,
+                                        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
+                                    }} 
+                                />
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="row g-4 no-print">
                 <div className="col-lg-7">
                     <div className="premium-card h-100">
                         <div className="d-flex align-items-center justify-content-between mb-4">

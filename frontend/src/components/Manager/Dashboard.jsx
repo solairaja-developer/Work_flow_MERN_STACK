@@ -1,9 +1,34 @@
 // frontend/src/components/Manager/Dashboard.jsx
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { managerAPI, authAPI } from '../../services/api';
+import { managerAPI, authAPI, IMAGE_BASE_URL } from '../../services/api';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    PointElement,
+    LineElement,
+    ArcElement,
+    Title,
+    Tooltip,
+    Legend
+} from 'chart.js';
+import { Bar, Doughnut } from 'react-chartjs-2';
+
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    PointElement,
+    LineElement,
+    ArcElement,
+    Title,
+    Tooltip,
+    Legend
+);
 
 const ManagerDashboard = () => {
     const queryClient = useQueryClient();
@@ -110,6 +135,74 @@ const ManagerDashboard = () => {
                         </div>
                     </div>
                 ))}
+            </div>
+
+            {/* Strategic Insights (Graphs) */}
+            <div className="row g-4 mb-4">
+                <div className="col-lg-8">
+                    <div className="premium-card h-100">
+                        <div className="d-flex justify-content-between align-items-center mb-4">
+                            <h5 className="mb-0 small text-uppercase fw-bold text-muted ls-1">Team Member Workload</h5>
+                        </div>
+                        <div style={{ height: '300px' }}>
+                            <Bar 
+                                data={{
+                                    labels: dashboardData?.dashboard?.teamPerformance?.map(p => p.fullName) || [],
+                                    datasets: [
+                                        {
+                                            label: 'Completed Tasks',
+                                            data: dashboardData?.dashboard?.teamPerformance?.map(p => p.completedTasks) || [],
+                                            backgroundColor: '#06d6a0',
+                                            borderRadius: 4
+                                        },
+                                        {
+                                            label: 'Total Assigned',
+                                            data: dashboardData?.dashboard?.teamPerformance?.map(p => p.totalTasks) || [],
+                                            backgroundColor: '#4cc9f0',
+                                            borderRadius: 4
+                                        }
+                                    ]
+                                }} 
+                                options={{ 
+                                    maintainAspectRatio: false,
+                                    plugins: { legend: { position: 'top' } },
+                                    scales: { 
+                                        y: { 
+                                            beginAtZero: true, 
+                                            ticks: { stepSize: 1 }
+                                        } 
+                                    }
+                                }} 
+                            />
+                        </div>
+                    </div>
+                </div>
+                <div className="col-lg-4">
+                    <div className="premium-card h-100">
+                        <h5 className="mb-4 small text-uppercase fw-bold text-muted ls-1">Department Task Status</h5>
+                        <div style={{ height: '300px' }}>
+                            <Doughnut 
+                                data={{
+                                    labels: ['Completed', 'In Progress', 'Pending'],
+                                    datasets: [{
+                                        data: [
+                                            stats?.completedTasks || 0,
+                                            stats?.inProgressTasks || 0,
+                                            stats?.pendingTasks || 0
+                                        ],
+                                        backgroundColor: ['#06d6a0', '#4cc9f0', '#ffd166'],
+                                        borderWidth: 0,
+                                        cutout: '75%'
+                                    }]
+                                }} 
+                                options={{ 
+                                    maintainAspectRatio: false,
+                                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
+                                }} 
+                            />
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div className="row g-4">

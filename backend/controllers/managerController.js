@@ -857,3 +857,195 @@ exports.getUnassignedDepartmentTasks = async (req, res) => {
         });
     }
 };
+
+// Get Manager Analytics
+exports.getManagerAnalytics = async (req, res) => {
+    try {
+        const department = req.user.department;
+        const { startDate, endDate } = req.query;
+        
+        const start = startDate ? new Date(startDate) : new Date(new Date().setDate(new Date().getDate() - 30));
+        const end = endDate ? new Date(endDate) : new Date();
+        end.setHours(23, 59, 59, 999);
+
+        // Departmental Performance mapped for manager UI format
+        const summaryMetrics = await Task.aggregate([
+            { $match: { department } },
+            {
+                $group: {
+                    _id: null,
+                    total: { $sum: 1 },
+                    completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+                    delayed: {
+                        $sum: {
+                            $cond: [
+                                { $and: [{ $in: ['$status', ['pending', 'in_progress']] }, { $lt: ['$dueDate', new Date()] }] },
+                                1, 0
+                            ]
+                        }
+                    },
+                    onTime: { 
+                        $sum: { 
+                            $cond: [
+                                { $and: [{ $eq: ['$status', 'completed'] }, { $lte: [{ $ifNull: ['$completedDate', '$updatedAt'] }, '$dueDate'] }] },
+                                1, 0
+                            ] 
+                        } 
+                    },
+                    avgLeadTime: {
+                        $avg: {
+                            $cond: [
+                                { $eq: ['$status', 'completed'] },
+                                { $divide: [{ $subtract: [{ $ifNull: ['$completedDate', '$updatedAt'] }, '$createdAt'] }, 86400000] }, // Convert ms to days
+                                null
+                            ]
+                        }
+                    }
+                }
+            }
+        ]);
+
+        const summary = summaryMetrics[0] || { total: 0, completed: 0, delayed: 0, onTime: 0, avgLeadTime: 0 };
+        summary.onTimeRate = summary.completed > 0 ? (summary.onTime / summary.completed) * 100 : 0;
+        summary.avgLeadTime = Math.round(summary.avgLeadTime * 10) / 10;
+
+        const departmentPerformance = [{
+            department,
+            total: summary.total,
+            completed: summary.completed,
+            onTimeRate: summary.onTimeRate,
+            overdue: summary.delayed,
+            avgLeadTime: summary.avgLeadTime
+        }];
+
+        // Completion Trend
+        const completionTrend = await Task.aggregate([
+            { 
+                $match: { 
+                    department, 
+                    status: 'completed',
+                    $or: [
+                        { completedDate: { $gte: start, $lte: end } },
+                        { completedDate: { $exists: false }, updatedAt: { $gte: start, $lte: end } }
+                    ]
+                } 
+            },
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: { $ifNull: ["$completedDate", "$updatedAt"] } } },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        // Status Distribution
+        const taskStatusDistribution = await Task.aggregate([
+            { $match: { department } },
+            { $group: { _id: '$status', count: { $sum: 1 } } }
+        ]);
+
+        // Leaderboard (Performance by staff in department)
+        const performance = await User.aggregate([
+            { $match: { department, role: 'staff' } },
+            {
+                $lookup: {
+                    from: 'tasks',
+                    localField: '_id',
+                    foreignField: 'assignedTo',
+                    as: 'tasks'
+                }
+            },
+            {
+                $project: {
+                    name: '$fullName',
+                    completed: {
+                        $size: {
+                            $filter: {
+                                input: '$tasks',
+                                as: 'task',
+                                cond: { $eq: ['$$task.status', 'completed'] }
+                            }
+                        }
+                    },
+                    total: { $size: '$tasks' },
+                    onTimeCount: {
+                        $size: {
+                            $filter: {
+                                input: '$tasks',
+                                as: 'task',
+                                cond: { 
+                                    $and: [
+                                        { $eq: ['$$task.status', 'completed'] },
+                                        { $lte: [{ $ifNull: ['$$task.completedDate', '$$task.updatedAt'] }, '$$task.dueDate'] }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                $addFields: {
+                    onTimeRate: {
+                        $cond: [
+                            { $gt: ['$completed', 0] },
+                            { $multiply: [{ $divide: ['$onTimeCount', '$completed'] }, 100] },
+                            0
+                        ]
+                    }
+                }
+            },
+            { $sort: { onTimeRate: -1, completed: -1 } }
+        ]);
+
+        res.json({
+            success: true,
+            analytics: {
+                summary,
+                departmentPerformance,
+                completionTrend,
+                taskStatusDistribution,
+                performance,
+                meta: { start, end, department }
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Get Department Detailed Report
+exports.getDepartmentReport = async (req, res) => {
+    try {
+        const department = req.user.department;
+        const { startDate, endDate } = req.query;
+        
+        let matchQuery = { department };
+        
+        if (startDate && endDate) {
+             const start = new Date(startDate);
+             const end = new Date(endDate);
+             end.setHours(23, 59, 59, 999);
+             matchQuery.createdAt = { $gte: start, $lte: end };
+        }
+
+        const tasks = await Task.find(matchQuery)
+            .populate('assignedTo', 'fullName')
+            .sort({ createdAt: -1 });
+
+        const formattedTasks = tasks.map(t => ({
+            ...t.toObject(),
+            isOnTime: t.status === 'completed' && (!t.completedDate ? t.updatedAt <= t.dueDate : t.completedDate <= t.dueDate)
+        }));
+
+        res.json({
+            success: true,
+            report: {
+                tasks: formattedTasks
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

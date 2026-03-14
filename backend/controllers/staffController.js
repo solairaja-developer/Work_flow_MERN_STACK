@@ -499,3 +499,95 @@ exports.markAllNotificationsRead = async (req, res) => {
         });
     }
 };
+
+// Get Staff Analytics Data
+exports.getStaffAnalytics = async (req, res) => {
+    try {
+        const staffId = req.user.id;
+        const { startDate, endDate } = req.query;
+        
+        const start = startDate ? new Date(startDate) : new Date(new Date().setDate(new Date().getDate() - 30));
+        const end = endDate ? new Date(endDate) : new Date();
+        end.setHours(23, 59, 59, 999);
+
+        // 1. Completion Metrics & On-Time Rate
+        const completionMetrics = await Task.aggregate([
+            { 
+                $match: { 
+                    assignedTo: req.user._id, 
+                    status: 'completed',
+                    $or: [
+                        { completedDate: { $gte: start, $lte: end } },
+                        { completedDate: { $exists: false }, updatedAt: { $gte: start, $lte: end } }
+                    ]
+                } 
+            },
+            {
+                $group: {
+                    _id: null,
+                    count: { $sum: 1 },
+                    onTime: { 
+                        $sum: { 
+                            $cond: [{ $lte: [{ $ifNull: ["$completedDate", "$updatedAt"] }, "$dueDate"] }, 1, 0] 
+                        } 
+                    }
+                }
+            }
+        ]);
+
+        const metrics = completionMetrics[0] || { count: 0, onTime: 0 };
+        const delayed = metrics.count - metrics.onTime;
+        const onTimeRate = metrics.count > 0 ? Math.round((metrics.onTime / metrics.count) * 100) : 0;
+
+        // 2. Personal Productivity Trend (Daily)
+        const dailyTrend = await Task.aggregate([
+            {
+                $match: {
+                    assignedTo: req.user._id,
+                    status: 'completed',
+                    $or: [
+                        { completedDate: { $gte: start, $lte: end } },
+                        { completedDate: { $exists: false }, updatedAt: { $gte: start, $lte: end } }
+                    ]
+                }
+            },
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: { $ifNull: ["$completedDate", "$updatedAt"] } } },
+                    completed: { $sum: 1 }
+                }
+            },
+            { $sort: { "_id": 1 } }
+        ]);
+
+        // 3. Status Mix
+        const statusDistribution = await Task.aggregate([
+            { $match: { assignedTo: req.user._id } },
+            { $group: { _id: "$status", count: { $sum: 1 } } }
+        ]);
+
+        // 4. Priority Overview
+        const priorityDistribution = await Task.aggregate([
+            { $match: { assignedTo: req.user._id, status: { $ne: 'completed' } } },
+            { $group: { _id: "$priority", count: { $sum: 1 } } }
+        ]);
+
+        res.json({
+            success: true,
+            analytics: {
+                summary: {
+                    totalCompleted: metrics.count,
+                    onTime: metrics.onTime,
+                    delayed: delayed,
+                    onTimeRate
+                },
+                trend: dailyTrend,
+                statusDistribution,
+                priorityDistribution,
+                meta: { start, end }
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

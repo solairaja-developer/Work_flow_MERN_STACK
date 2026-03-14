@@ -30,7 +30,8 @@ const Sidebar = ({ collapsed, isMobileOpen, toggleSidebar, closeMobileSidebar })
     { path: '/departments', icon: 'fas fa-building', label: 'Department View', roles: ['admin', 'manager'] },
     { path: '/tasks', icon: 'fas fa-project-diagram', label: 'Task Status', roles: ['admin', 'manager', 'staff'] },
     { path: '/notifications', icon: 'fas fa-bell', label: 'Messages', roles: ['admin', 'manager', 'staff'] },
-    { path: '/reports', icon: 'fas fa-chart-line', label: 'Analytics', roles: ['admin', 'manager'] },
+    { path: '/reports', icon: 'fas fa-chart-line', label: 'Department Analytics', roles: ['admin', 'manager'] },
+    { path: '/staff/analytics', icon: 'fas fa-chart-pie', label: 'My Analytics', roles: ['staff'] },
   ];
 
   const filteredMenuItems = menuItems.filter(item =>

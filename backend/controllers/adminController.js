@@ -540,6 +540,11 @@ exports.getAnalytics = async (req, res) => {
             { $group: { _id: '$status', count: { $sum: 1 } } }
         ]);
 
+        const priorityDistribution = await Task.aggregate([
+            { $match: department ? { department } : {} },
+            { $group: { _id: '$priority', count: { $sum: 1 } } }
+        ]);
+
         res.json({
             success: true,
             analytics: {
@@ -547,6 +552,7 @@ exports.getAnalytics = async (req, res) => {
                 completionTrend,
                 userDistribution,
                 taskStatusDistribution,
+                priorityDistribution,
                 meta: { start, end, department: department || 'All' }
             }
         });
