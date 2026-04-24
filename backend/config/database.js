@@ -14,7 +14,7 @@ class Database {
       console.log('MongoDB Connected Successfully');
     } catch (error) {
       console.error('MongoDB Connection Error:', error);
-      // Don't exit process in serverless environments
+      process.exit(1);
     }
   }
 

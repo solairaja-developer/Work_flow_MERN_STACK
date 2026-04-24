@@ -15,17 +15,9 @@ const routes = require('./routes/index');
 const app = express();
 
 // Middleware
-app.use(cors({
-    origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
-    optionsSuccessStatus: 200 // Some legacy browsers choke on 204
-}));
-app.options('*', cors()); // Enable pre-flight for all routes
+app.use(cors());
 app.use(helmet({
-    crossOriginResourcePolicy: false,
-    crossOriginEmbedderPolicy: false
+    crossOriginResourcePolicy: false, // Allow loading images from different origins
 }));
 app.use(morgan('dev'));
 app.use(express.json());
@@ -33,9 +25,6 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-app.get('/', (req, res) => res.send('Workflow API is running...'));
-app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 // Routes
 app.use('/api', routes); // All routes will be prefixed with /api
@@ -58,10 +47,6 @@ app.use((req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-if (process.env.NODE_ENV !== 'production') {
-    app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
-    });
-}
-
-module.exports = app;
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
