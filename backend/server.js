@@ -15,9 +15,15 @@ const routes = require('./routes/index');
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: '*', // For development, we allow all. For production, you can set it to 'https://workflow-drefresh.netlify.app'
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+}));
 app.use(helmet({
-    crossOriginResourcePolicy: false, // Allow loading images from different origins
+    crossOriginResourcePolicy: false,
+    crossOriginEmbedderPolicy: false
 }));
 app.use(morgan('dev'));
 app.use(express.json());
