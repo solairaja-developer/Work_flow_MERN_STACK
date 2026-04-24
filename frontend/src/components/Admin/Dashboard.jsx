@@ -2,7 +2,7 @@
 import React from 'react';
 import { useQuery } from 'react-query';
 import { adminAPI, IMAGE_BASE_URL } from '../../services/api';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
     Chart as ChartJS,
@@ -30,7 +30,39 @@ ChartJS.register(
     Legend
 );
 
+// Custom plugin to show values on top of bars/points
+const datalabelsPlugin = {
+    id: 'datalabels',
+    afterDatasetsDraw(chart) {
+        const { ctx, data } = chart;
+        ctx.save();
+        data.datasets.forEach((dataset, i) => {
+            const meta = chart.getDatasetMeta(i);
+            if (meta.hidden) return;
+            meta.data.forEach((element, index) => {
+                const value = dataset.data[index];
+                const label = data.labels[index];
+                if (value === null || value === undefined) return;
+                
+                ctx.fillStyle = '#1e293b';
+                ctx.font = 'bold 10px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                
+                const { x, y } = element.tooltipPosition();
+                if (chart.config.type === 'pie' || chart.config.type === 'doughnut') {
+                    ctx.fillText(`${label}: ${value}`, x, y);
+                } else {
+                    ctx.fillText(value, x, y - 5);
+                }
+            });
+        });
+        ctx.restore();
+    }
+};
+
 const AdminDashboard = () => {
+    const navigate = useNavigate();
     const [showTaskModal, setShowTaskModal] = React.useState(false);
     const [taskForm, setTaskForm] = React.useState({
         title: '',
@@ -270,7 +302,10 @@ const AdminDashboard = () => {
                     <div className="col-xl-3 col-md-6" key={i}>
                         <div className={`premium-card h-100 ${taskFilter === stat.label.toLowerCase().replace(' ', '_') ? 'border-primary' : ''}`} 
                              style={{ cursor: 'pointer' }}
-                             onClick={() => setTaskFilter(stat.label.toLowerCase().replace(' ', '_') === 'global_tasks' ? 'all' : stat.label.toLowerCase().replace(' ', '_'))}>
+                             onClick={() => {
+                                 const status = stat.label.toLowerCase().replace(' ', '_') === 'global_tasks' ? 'all' : stat.label.toLowerCase().replace(' ', '_');
+                                 navigate(`/tasks?status=${status}`);
+                             }}>
                             <div className="d-flex justify-content-between align-items-start mb-3">
                                 <div className={`btn-icon rounded-circle bg-${stat.color} text-white`}>
                                     <i className={stat.icon}></i>
@@ -310,7 +345,10 @@ const AdminDashboard = () => {
                                     }} 
                                     options={{ 
                                         maintainAspectRatio: false,
-                                        plugins: { legend: { display: false } },
+                                        plugins: { 
+                                            legend: { display: false },
+                                            datalabels: {}
+                                        },
                                         scales: { 
                                             y: { 
                                                 beginAtZero: true, 
@@ -319,6 +357,7 @@ const AdminDashboard = () => {
                                             } 
                                         }
                                     }} 
+                                    plugins={[datalabelsPlugin]}
                                 />
                             )}
                         </div>
@@ -344,8 +383,12 @@ const AdminDashboard = () => {
                                     }} 
                                     options={{ 
                                         maintainAspectRatio: false,
-                                        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
+                                        plugins: { 
+                                            legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+                                            datalabels: {}
+                                        }
                                     }} 
+                                    plugins={[datalabelsPlugin]}
                                 />
                             )}
                         </div>
@@ -377,7 +420,10 @@ const AdminDashboard = () => {
                                     }} 
                                     options={{ 
                                         maintainAspectRatio: false,
-                                        plugins: { legend: { display: false } },
+                                        plugins: { 
+                                            legend: { display: false },
+                                            datalabels: {}
+                                        },
                                         scales: { 
                                             y: { 
                                                 beginAtZero: true, 
@@ -385,6 +431,7 @@ const AdminDashboard = () => {
                                             } 
                                         }
                                     }} 
+                                    plugins={[datalabelsPlugin]}
                                 />
                             )}
                         </div>
@@ -411,8 +458,12 @@ const AdminDashboard = () => {
                                     }} 
                                     options={{ 
                                         maintainAspectRatio: false,
-                                        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
+                                        plugins: { 
+                                            legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+                                            datalabels: {}
+                                        }
                                     }} 
+                                    plugins={[datalabelsPlugin]}
                                 />
                             )}
                         </div>

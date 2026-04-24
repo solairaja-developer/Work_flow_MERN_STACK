@@ -4,7 +4,7 @@ require('dotenv').config();
 
 const seedDatabase = async () => {
     try {
-        await mongoose.connect(process.env.MONGODB_URI || 'mongodb://https://workflow-drefresh.netlify.app');
+        await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/workflow_system');
         
         console.log('Connected to database');
         

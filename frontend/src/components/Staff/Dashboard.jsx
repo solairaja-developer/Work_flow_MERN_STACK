@@ -78,7 +78,16 @@ const StaffDashboard = () => {
                     { label: 'Pending/Hold', value: stats?.pendingTasks || 0, icon: 'fas fa-pause-circle', color: 'warning', trend: 'Action req.' }
                 ].map((stat, i) => (
                     <div className="col-xl-3 col-md-6" key={i}>
-                        <div className="premium-card h-100">
+                        <div className="premium-card h-100" style={{ cursor: 'pointer' }}
+                             onClick={() => {
+                                 const rawStatus = stat.label.toLowerCase();
+                                 let status = 'all';
+                                 if (rawStatus.includes('assigned')) status = 'all';
+                                 else if (rawStatus.includes('progress')) status = 'in_progress';
+                                 else if (rawStatus.includes('completed')) status = 'completed';
+                                 else if (rawStatus.includes('pending')) status = 'pending';
+                                 navigate(`/tasks?status=${status}`);
+                             }}>
                             <div className="d-flex justify-content-between align-items-start mb-3">
                                 <div className={`btn-icon rounded-circle bg-${stat.color} text-white`}>
                                     <i className={stat.icon}></i>

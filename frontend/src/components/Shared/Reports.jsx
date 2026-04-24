@@ -14,6 +14,43 @@ ChartJS.register(
     BarElement, ArcElement, Title, Tooltip, Legend, Filler
 );
 
+// Custom plugin to show values on top of bars/points
+const datalabelsPlugin = {
+    id: 'datalabels',
+    afterDatasetsDraw(chart) {
+        const { ctx, data } = chart;
+        ctx.save();
+        data.datasets.forEach((dataset, i) => {
+            const meta = chart.getDatasetMeta(i);
+            if (meta.hidden) return;
+            meta.data.forEach((element, index) => {
+                const value = dataset.data[index];
+                const label = data.labels[index];
+                if (value === null || value === undefined) return;
+                
+                ctx.fillStyle = '#1e293b';
+                ctx.font = 'bold 10px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                
+                const { x, y } = element.tooltipPosition();
+                
+                // For Pie/Doughnut charts, show Label: Value
+                if (chart.config.type === 'pie' || chart.config.type === 'doughnut') {
+                    ctx.fillText(`${label}: ${value}`, x, y);
+                } else if (data.datasets.length > 1) {
+                    // For multi-dataset bar/line charts, show Value only to avoid clutter
+                    ctx.fillText(value, x, y - 5);
+                } else {
+                    // For single dataset charts, show Value
+                    ctx.fillText(value, x, y - 5);
+                }
+            });
+        });
+        ctx.restore();
+    }
+};
+
 const Reports = () => {
     const { user } = useAuth();
     const isAdmin = user?.role === 'admin';
@@ -172,7 +209,13 @@ const Reports = () => {
                     <div className="premium-card h-100">
                         <h6 className="fw-bold text-muted mb-4 ls-1">OPERATIONAL VELOCITY TREND</h6>
                         <div style={{ height: '300px' }}>
-                            <Line data={trendData} options={{ maintainAspectRatio: false, plugins: { legend: { display: false } } }} />
+                            <Line data={trendData} options={{ 
+                                maintainAspectRatio: false, 
+                                plugins: { 
+                                    legend: { display: true, position: 'top' },
+                                    datalabels: {} 
+                                } 
+                            }} plugins={[datalabelsPlugin]} />
                         </div>
                     </div>
                 </div>
@@ -180,7 +223,13 @@ const Reports = () => {
                     <div className="premium-card h-100">
                         <h6 className="fw-bold text-muted mb-4 ls-1">WORKLOAD DISTRIBUTION</h6>
                         <div style={{ height: '300px' }}>
-                            <Pie data={statusData} options={{ maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }} />
+                            <Pie data={statusData} options={{ 
+                                maintainAspectRatio: false, 
+                                plugins: { 
+                                    legend: { position: 'bottom' },
+                                    datalabels: {}
+                                } 
+                            }} plugins={[datalabelsPlugin]} />
                         </div>
                     </div>
                 </div>
@@ -191,8 +240,12 @@ const Reports = () => {
                             <div style={{ height: '350px' }}>
                                 <Bar data={deptPerfData} options={{ 
                                     maintainAspectRatio: false,
-                                    scales: { y: { beginAtZero: true } }
-                                }} />
+                                    scales: { y: { beginAtZero: true } },
+                                    plugins: {
+                                        legend: { display: true, position: 'top' },
+                                        datalabels: {}
+                                    }
+                                }} plugins={[datalabelsPlugin]} />
                             </div>
                         </div>
                     </div>

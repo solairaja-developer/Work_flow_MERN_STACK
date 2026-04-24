@@ -3,11 +3,20 @@ import React, { useState } from 'react';
 import { useQuery } from 'react-query';
 import { sharedAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 const TaskStatus = () => {
     const { user } = useAuth();
-    const [filter, setFilter] = useState('all');
+    const location = useLocation();
+    const queryParams = new URLSearchParams(location.search);
+    const initialStatus = queryParams.get('status') || 'all';
+    const [filter, setFilter] = useState(initialStatus);
+
+    // Sync filter with URL query parameter
+    React.useEffect(() => {
+        const status = queryParams.get('status') || 'all';
+        setFilter(status);
+    }, [location.search]);
     
     const { data: tasks, isLoading, error, refetch } = useQuery(
         ['tasks', filter],

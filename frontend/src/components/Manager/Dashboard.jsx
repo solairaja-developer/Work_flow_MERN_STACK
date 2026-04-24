@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { managerAPI, authAPI, IMAGE_BASE_URL } from '../../services/api';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
     Chart as ChartJS,
@@ -30,7 +30,36 @@ ChartJS.register(
     Legend
 );
 
+const datalabelsPlugin = {
+    id: 'datalabels',
+    afterDatasetsDraw(chart) {
+        const { ctx, data } = chart;
+        ctx.save();
+        data.datasets.forEach((dataset, i) => {
+            const meta = chart.getDatasetMeta(i);
+            if (meta.hidden) return;
+            meta.data.forEach((element, index) => {
+                const value = dataset.data[index];
+                const label = data.labels[index];
+                if (value === null || value === undefined) return;
+                ctx.fillStyle = '#1e293b';
+                ctx.font = 'bold 10px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                const { x, y } = element.tooltipPosition();
+                if (chart.config.type === 'pie' || chart.config.type === 'doughnut') {
+                    ctx.fillText(`${label}: ${value}`, x, y);
+                } else {
+                    ctx.fillText(value, x, y - 5);
+                }
+            });
+        });
+        ctx.restore();
+    }
+};
+
 const ManagerDashboard = () => {
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [quickTask, setQuickTask] = useState({
         title: '',
@@ -123,7 +152,10 @@ const ManagerDashboard = () => {
                     <div className="col-xl-3 col-md-6" key={i}>
                         <div className={`premium-card h-100 ${taskFilter === stat.label.toLowerCase().replace(' ', '_') ? 'border-primary' : ''}`}
                              style={{ cursor: 'pointer' }}
-                             onClick={() => setTaskFilter(stat.label.toLowerCase().replace(' ', '_') === 'total_tasks' ? 'all' : stat.label.toLowerCase().replace(' ', '_') === 'active_work' ? 'in_progress' : stat.label.toLowerCase().replace(' ', '_'))}>
+                             onClick={() => {
+                                 const status = stat.label.toLowerCase().replace(' ', '_') === 'total_tasks' ? 'all' : stat.label.toLowerCase().replace(' ', '_') === 'active_work' ? 'in_progress' : stat.label.toLowerCase().replace(' ', '_');
+                                 navigate(`/tasks?status=${status}`);
+                             }}>
                             <div className="d-flex justify-content-between align-items-start mb-3">
                                 <div className={`btn-icon rounded-circle bg-${stat.color} text-white`}>
                                     <i className={stat.icon}></i>
@@ -165,7 +197,10 @@ const ManagerDashboard = () => {
                                 }} 
                                 options={{ 
                                     maintainAspectRatio: false,
-                                    plugins: { legend: { position: 'top' } },
+                                    plugins: { 
+                                        legend: { position: 'top' },
+                                        datalabels: {}
+                                    },
                                     scales: { 
                                         y: { 
                                             beginAtZero: true, 
@@ -173,6 +208,7 @@ const ManagerDashboard = () => {
                                         } 
                                     }
                                 }} 
+                                plugins={[datalabelsPlugin]}
                             />
                         </div>
                     </div>
@@ -197,8 +233,12 @@ const ManagerDashboard = () => {
                                 }} 
                                 options={{ 
                                     maintainAspectRatio: false,
-                                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
+                                    plugins: { 
+                                        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+                                        datalabels: {}
+                                    }
                                 }} 
+                                plugins={[datalabelsPlugin]}
                             />
                         </div>
                     </div>

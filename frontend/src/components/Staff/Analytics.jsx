@@ -27,6 +27,33 @@ ChartJS.register(
     Legend
 );
 
+const datalabelsPlugin = {
+    id: 'datalabels',
+    afterDatasetsDraw(chart) {
+        const { ctx, data } = chart;
+        ctx.save();
+        data.datasets.forEach((dataset, i) => {
+            const meta = chart.getDatasetMeta(i);
+            meta.data.forEach((element, index) => {
+                const value = dataset.data[index];
+                const label = data.labels[index];
+                if (value === null || value === undefined) return;
+                ctx.fillStyle = '#1e293b';
+                ctx.font = 'bold 10px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                const { x, y } = element.tooltipPosition();
+                if (chart.config.type === 'pie' || chart.config.type === 'doughnut') {
+                    ctx.fillText(`${label}: ${value}`, x, y);
+                } else {
+                    ctx.fillText(value, x, y - 5);
+                }
+            });
+        });
+        ctx.restore();
+    }
+};
+
 const StaffAnalytics = () => {
     const { data: analyticsData, isLoading } = useQuery(
         ['staffAnalytics'],
@@ -125,9 +152,13 @@ const StaffAnalytics = () => {
                                 }} 
                                 options={{ 
                                     maintainAspectRatio: false,
-                                    plugins: { legend: { display: false } },
+                                    plugins: { 
+                                        legend: { display: false },
+                                        datalabels: {}
+                                    },
                                     scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
                                 }} 
+                                plugins={[datalabelsPlugin]}
                             />
                         </div>
                     </div>
@@ -156,8 +187,12 @@ const StaffAnalytics = () => {
                                     }} 
                                     options={{ 
                                         maintainAspectRatio: false,
-                                        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
+                                        plugins: { 
+                                            legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+                                            datalabels: {}
+                                        }
                                     }} 
+                                    plugins={[datalabelsPlugin]}
                                 />
                             ) : (
                                 <div className="text-center text-muted">
