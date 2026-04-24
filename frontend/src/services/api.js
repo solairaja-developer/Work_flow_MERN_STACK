@@ -1,7 +1,7 @@
 // frontend/src/services/api.js
 import axios from 'axios';
 
-export const API_URL = import.meta.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+export const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 export const IMAGE_BASE_URL = API_URL.replace('/api', '');
 
 const API = axios.create({
