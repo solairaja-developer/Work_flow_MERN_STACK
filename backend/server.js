@@ -16,11 +16,13 @@ const app = express();
 
 // Middleware
 app.use(cors({
-    origin: '*', // For development, we allow all. For production, you can set it to 'https://workflow-drefresh.netlify.app'
+    origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
+    credentials: true,
+    optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 }));
+app.options('*', cors()); // Enable pre-flight for all routes
 app.use(helmet({
     crossOriginResourcePolicy: false,
     crossOriginEmbedderPolicy: false
@@ -31,6 +33,8 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 // Routes
 app.use('/api', routes); // All routes will be prefixed with /api
