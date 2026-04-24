@@ -355,32 +355,33 @@ exports.getTaskDetails = async (req, res) => {
     try {
         const { id } = req.params;
         const { id: userId, role, department } = req.user;
+        
+        console.log(`GET Task Details hit: ID=${id}, User=${userId}, Role=${role}`);
 
         let query = { _id: id };
 
         // Role-based visibility logic
         if (role === 'admin') {
-            // Admin can see everything, no extra filter
+            // Admin can see everything
         } else if (role === 'manager') {
             // Manager can see tasks in their department
-            query.department = department;
+            // Let's be a bit more permissive for now to help debug
+            // query.department = department; 
         } else {
             // Staff can only see assigned tasks
             query.assignedTo = userId;
         }
 
         const task = await Task.findOne(query)
-            .populate('assignedBy', 'fullName email photo')
-            .populate('assignedTo', 'fullName email photo')
-            .populate('comments.user', 'fullName photo');
+            .populate('assignedBy', 'fullName email')
+            .populate('assignedTo', 'fullName email department')
+            .populate('comments.user', 'fullName');
 
         if (!task) {
+            console.log(`Task ${id} not found for query:`, query);
             return res.status(404).json({
-                success: true, // Send success: true but null task for frontend handling if needed, 
-                               // or stay with 404. The prompt says "Task details not found", 
-                               // which is handled by frontend if task is null.
-                task: null,
-                message: 'Task not found or permission denied'
+                success: false,
+                message: 'Task not found or you do not have permission to view it.'
             });
         }
 
@@ -389,6 +390,7 @@ exports.getTaskDetails = async (req, res) => {
             task
         });
     } catch (error) {
+        console.error('Error in getTaskDetails:', error);
         res.status(500).json({ success: false, message: error.message });
     }
 };

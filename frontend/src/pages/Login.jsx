@@ -89,7 +89,7 @@ const Login = () => {
           
           <div className="login-footer">
             <p className="text-muted text-center mb-0">
-              <small>Default credentials: admin@example.com / password</small>
+              <small>Default credentials: admin@workflow.com / password123</small>
             </p>
           </div>
         </div>

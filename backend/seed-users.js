@@ -1,16 +1,15 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 const User = require('./models/User');
 require('dotenv').config();
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/workflow_system';
 
-const usersData = [
+const users = [
     // 1 Admin
     {
         username: 'admin',
         email: 'admin@workflow.com',
-        password: 'admin@123',
+        password: 'password123',
         fullName: 'System Administrator',
         role: 'admin',
         department: 'Diary',
@@ -120,38 +119,16 @@ const seedUsers = async () => {
         await User.deleteMany({});
         console.log('Cleared existing users');
 
-        const saltRounds = 10;
-        const hashedUsers = [];
-        let empCount = 1;
-
-        for (const data of usersData) {
-            console.log(`Processing user: ${data.username}...`);
-            
-            // 1. Hash the password with a salt
-            const salt = await bcrypt.genSalt(saltRounds);
-            const hashedPassword = await bcrypt.hash(data.password, salt);
-            
-            // 2. Prepare the user object
-            const userObj = {
-                ...data,
-                password: hashedPassword
-            };
-
-            // 3. Manually generate staff ID for non-admins (since we'll use insertMany which bypasses hooks)
-            if (data.role !== 'admin') {
-                userObj.staffId = `EMP${String(empCount).padStart(4, '0')}`;
-                empCount++;
-            }
-
-            hashedUsers.push(userObj);
+        // Insert new users
+        // We use save() instead of insertMany to trigger the pre('save') hook for hashing passwords and generating staff IDs
+        for (const userData of users) {
+            const user = new User(userData);
+            await user.save();
+            console.log(`Created user: ${user.username} (${user.role})`);
         }
 
-        // Insert all users at once
-        await User.insertMany(hashedUsers);
-
-        console.log('\n✅ Successfully seeded 10 hashed users!');
-        console.log('Admin password: admin@123');
-        console.log('Other passwords: password123');
+        console.log('\n✅ Successfully seeded 10 users!');
+        console.log('All passwords are: password123');
         process.exit(0);
     } catch (error) {
         console.error('❌ Error seeding users:', error);

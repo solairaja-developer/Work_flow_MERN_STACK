@@ -113,7 +113,7 @@ const TaskCard = ({ task }) => {
         </p>
         <p className="mb-2">
           <i className="fas fa-layer-group me-2"></i>
-          Category: {task.category}
+          Department: {task.department}
         </p>
       </div>
       
