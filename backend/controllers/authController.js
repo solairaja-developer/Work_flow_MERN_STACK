@@ -80,12 +80,18 @@ exports.login = async (req, res) => {
             });
         }
 
-        // Diagnostic Check: Database Connection
+        // Ensure Database is connected for Serverless Cold Starts
         if (mongoose.connection.readyState !== 1) {
-            console.error('Database not connected. ReadyState:', mongoose.connection.readyState);
+            console.log('Database not ready. Connecting now...');
+            const db = require('../config/database');
+            await db.connect();
+        }
+
+        // Secondary check if connection failed
+        if (mongoose.connection.readyState !== 1) {
             return res.status(500).json({ 
                 success: false, 
-                message: 'Database Connection Error. Please check MONGODB_URI' 
+                message: 'Database Connection Error. Please check MONGODB_URI in Vercel Environment Variables.' 
             });
         }
 

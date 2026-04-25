@@ -1,31 +1,36 @@
 const mongoose = require('mongoose');
 
-class Database {
-  constructor() {
-    this.connect();
+// Serverless friendly database connection cache
+let isConnected = false;
+
+const connectDB = async () => {
+  if (isConnected || mongoose.connection.readyState === 1) {
+    console.log('MongoDB already connected.');
+    return;
   }
 
-  async connect() {
-    try {
-      await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/workflow_system', {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-      });
-      console.log('MongoDB Connected Successfully');
-    } catch (error) {
-      console.error('MongoDB Connection Error:', error);
-      // Don't exit process in production to allow error response with CORS headers
-      // process.exit(1);
-    }
+  try {
+    const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/workflow_system';
+    console.log('Attempting to connect to MongoDB...');
+    await mongoose.connect(uri, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000, 
+    });
+    
+    isConnected = true;
+    console.log('MongoDB Connected Successfully');
+  } catch (error) {
+    console.error('MongoDB Connection Error:', error);
+    // Let the route handler catch this if it fails
   }
+};
 
-  getConnection() {
-    return mongoose.connection;
-  }
+// Start connection immediately when required
+connectDB();
 
-  getPDOConnection() {
-    return mongoose.connection;
-  }
-}
-
-module.exports = new Database();
+module.exports = {
+  connect: connectDB,
+  getConnection: () => mongoose.connection,
+  getPDOConnection: () => mongoose.connection
+};
