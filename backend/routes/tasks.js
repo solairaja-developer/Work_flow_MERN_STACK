@@ -6,9 +6,20 @@ const auth = require('../middleware/auth');
 const roleMiddleware = require('../middleware/roleMiddleware');
 
 // Configure multer for file uploads
+const fs = require('fs');
+
+const uploadDir = process.env.NODE_ENV === 'production' ? '/tmp/tasks' : 'uploads/';
+if (!fs.existsSync(uploadDir)) {
+    try {
+        fs.mkdirSync(uploadDir, { recursive: true });
+    } catch (e) {
+        console.error('Failed to make task upload directory', e);
+    }
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);

@@ -2,10 +2,14 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Ensure uploads directory exists
-const uploadDir = 'uploads/profiles';
+// Ensure uploads directory exists. On Vercel (production), use /tmp to avoid read-only file system errors.
+const uploadDir = process.env.NODE_ENV === 'production' ? '/tmp/profiles' : 'uploads/profiles';
 if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
+    try {
+        fs.mkdirSync(uploadDir, { recursive: true });
+    } catch (e) {
+        console.error('Failed to make upload directory', e);
+    }
 }
 
 const storage = multer.diskStorage({
