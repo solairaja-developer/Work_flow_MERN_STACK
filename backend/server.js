@@ -15,29 +15,15 @@ const routes = require('./routes/index');
 const app = express();
 
 // Middleware
-const allowedOrigins = [
-    'https://workflow-drefresh.netlify.app',
-    'http://localhost:3000',
-    'http://localhost:5173'
-];
-
 app.use(cors({
-    origin: function (origin, callback) {
-        // allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) === -1) {
-            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-            return callback(new Error(msg), false);
-        }
-        return callback(null, true);
-    },
+    origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(helmet({
     crossOriginResourcePolicy: false,
+    crossOriginEmbedderPolicy: false
 }));
 app.use(morgan('dev'));
 app.use(express.json());
@@ -47,6 +33,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
+app.get('/api/test', (req, res) => res.json({ success: true, message: 'API is working and CORS is configured!' }));
 app.use('/api', routes); // All routes will be prefixed with /api
 
 // Error handling middleware
