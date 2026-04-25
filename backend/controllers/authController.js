@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 
 const generateToken = (userId) => {
     return jwt.sign(
@@ -70,6 +71,24 @@ exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
+        // Diagnostic Check: JWT Secret
+        if (!process.env.JWT_SECRET) {
+            console.error('JWT_SECRET is missing from environment variables!');
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Server Configuration Error: JWT_SECRET is missing' 
+            });
+        }
+
+        // Diagnostic Check: Database Connection
+        if (mongoose.connection.readyState !== 1) {
+            console.error('Database not connected. ReadyState:', mongoose.connection.readyState);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Database Connection Error. Please check MONGODB_URI' 
+            });
+        }
+
         // Find user
         const user = await User.findOne({ email });
         if (!user) {
@@ -119,9 +138,10 @@ exports.login = async (req, res) => {
             }
         });
     } catch (error) {
+        console.error('LOGIN ERROR:', error);
         res.status(500).json({ 
             success: false, 
-            message: error.message 
+            message: `Login failed: ${error.message}` 
         });
     }
 };
