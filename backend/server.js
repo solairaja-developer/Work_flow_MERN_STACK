@@ -6,13 +6,34 @@ const morgan = require('morgan');
 const path = require('path');
 require('dotenv').config();
 
-// Import database connection
-require('./config/database');
+const app = express();
+
+// Explicit OPTIONS handler for Preflight requests
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+    next();
+});
+
+// Import database connection - Wrapped to prevent boot crash
+try {
+    require('./config/database');
+} catch (error) {
+    console.error('FAILED TO INITIALIZE DATABASE:', error);
+}
 
 // Import routes
-const routes = require('./routes/index');
-
-const app = express();
+let routes;
+try {
+    routes = require('./routes/index');
+} catch (error) {
+    console.error('FAILED TO LOAD ROUTES:', error);
+}
 
 // Middleware
 app.use(cors({
@@ -34,7 +55,12 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.get('/api/test', (req, res) => res.json({ success: true, message: 'API is working and CORS is configured!' }));
-app.use('/api', routes); // All routes will be prefixed with /api
+
+if (routes) {
+    app.use('/api', routes); // All routes will be prefixed with /api
+} else {
+    app.get('/api/*', (req, res) => res.status(500).json({ success: false, message: 'API Routes failed to load. Check server logs.' }));
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -54,6 +80,10 @@ app.use((req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+}
+
+module.exports = app;
