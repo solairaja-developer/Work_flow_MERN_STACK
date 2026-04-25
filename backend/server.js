@@ -25,6 +25,7 @@ try {
     require('./config/database');
 } catch (error) {
     console.error('FAILED TO INITIALIZE DATABASE:', error);
+    global.dbLoadError = error.message;
 }
 
 // Import routes
@@ -33,6 +34,7 @@ try {
     routes = require('./routes/index');
 } catch (error) {
     console.error('FAILED TO LOAD ROUTES:', error);
+    global.routeLoadError = error.stack || error.message;
 }
 
 // Middleware
@@ -61,7 +63,11 @@ if (routes) {
     app.use('/api', routes); 
     app.use('/', routes); 
 } else {
-    app.all('/api/*', (req, res) => res.status(500).json({ success: false, message: 'API Routes failed to load. Check server logs.' }));
+    app.all('/api/*', (req, res) => res.status(500).json({ 
+        success: false, 
+        message: 'API Routes failed to load.', 
+        error: global.routeLoadError 
+    }));
 }
 
 // Global 404 handler for any unmatched routes
