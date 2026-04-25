@@ -57,10 +57,21 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.get('/api/test', (req, res) => res.json({ success: true, message: 'API is working and CORS is configured!' }));
 
 if (routes) {
-    app.use('/api', routes); // All routes will be prefixed with /api
+    // Support both /api/auth/login and /auth/login just in case
+    app.use('/api', routes); 
+    app.use('/', routes); 
 } else {
-    app.get('/api/*', (req, res) => res.status(500).json({ success: false, message: 'API Routes failed to load. Check server logs.' }));
+    app.all('/api/*', (req, res) => res.status(500).json({ success: false, message: 'API Routes failed to load. Check server logs.' }));
 }
+
+// Global 404 handler for any unmatched routes
+app.use((req, res) => {
+    console.log(`404 at ${req.method} ${req.url}`);
+    res.status(404).json({
+        success: false,
+        message: `Route ${req.method} ${req.url} not found on this server`
+    });
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -68,14 +79,6 @@ app.use((err, req, res, next) => {
     res.status(500).json({
         success: false,
         message: err.message || 'Internal Server Error'
-    });
-});
-
-// 404 handler
-app.use((req, res) => {
-    res.status(404).json({
-        success: false,
-        message: 'Route not found'
     });
 });
 
